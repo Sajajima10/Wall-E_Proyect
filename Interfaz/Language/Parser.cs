@@ -80,6 +80,8 @@ namespace Interfaz.Language
                     break;
                 case TokenType.IF:
                     return ParseIfStatement();
+                case TokenType.LOOP:
+                    return ParseLoopStatement();
                 case TokenType.CALL:
                 case TokenType.PRINT:
                 case TokenType.RAND:
@@ -171,6 +173,33 @@ namespace Interfaz.Language
             return new IfStatement(condition, trueBlock, falseBlock, ifToken.Line, ifToken.Column);
         }
 
+        private LoopStatement ParseLoopStatement()
+        {
+            Token loopToken = Eat(TokenType.LOOP);
+            Token iterator = Eat(TokenType.IDENTIFIER);
+            Eat(TokenType.ASSIGN);
+            Expression from = ParseExpression();
+            Eat(TokenType.TO);
+            Expression to = ParseExpression();
+
+            // Salta líneas vacías antes del cuerpo
+            while (CurrentToken.Type == TokenType.NEWLINE)
+                Advance();
+
+            var body = new List<Statement>();
+            while (CurrentToken.Type != TokenType.ENDLOOP && CurrentToken.Type != TokenType.EOF)
+            {
+                while (CurrentToken.Type == TokenType.NEWLINE)
+                    Advance();
+                if (CurrentToken.Type == TokenType.ENDLOOP || CurrentToken.Type == TokenType.EOF)
+                    break;
+                body.Add(ParseStatement());
+            }
+            Eat(TokenType.ENDLOOP);
+
+            return new LoopStatement(iterator.Value, from, to, body, loopToken.Line, loopToken.Column);
+        }
+
         private LabelStatement ParseLabelStatement()
         {
             Token labelToken = Eat(TokenType.IDENTIFIER);
@@ -254,9 +283,35 @@ namespace Interfaz.Language
             return new Assignment(varNameToken.Value, value, line, column);
         }
 
+        // --- Cambia la jerarquía de precedencia para incluir operadores lógicos ---
+
         private Expression ParseExpression()
         {
-            return ParseComparison();
+            return ParseLogicalOr();
+        }
+
+        private Expression ParseLogicalOr()
+        {
+            Expression expr = ParseLogicalAnd();
+            while (CurrentToken.Type == TokenType.OR)
+            {
+                Token op = CurrentToken;
+                Advance();
+                expr = new BinaryExpression(expr, op.Type, ParseLogicalAnd(), op.Line, op.Column);
+            }
+            return expr;
+        }
+
+        private Expression ParseLogicalAnd()
+        {
+            Expression expr = ParseComparison();
+            while (CurrentToken.Type == TokenType.AND)
+            {
+                Token op = CurrentToken;
+                Advance();
+                expr = new BinaryExpression(expr, op.Type, ParseComparison(), op.Line, op.Column);
+            }
+            return expr;
         }
 
         private Expression ParseComparison()
@@ -292,15 +347,26 @@ namespace Interfaz.Language
 
         private Expression ParseMultiplicative()
         {
-            Expression expr = ParsePrimary();
+            Expression expr = ParseUnary();
 
             while (CurrentToken.Type == TokenType.MULTIPLY || CurrentToken.Type == TokenType.DIVIDE || CurrentToken.Type == TokenType.MODULO)
             {
                 Token op = CurrentToken;
                 Advance();
-                expr = new BinaryExpression(expr, op.Type, ParsePrimary(), op.Line, op.Column);
+                expr = new BinaryExpression(expr, op.Type, ParseUnary(), op.Line, op.Column);
             }
             return expr;
+        }
+
+        private Expression ParseUnary()
+        {
+            if (CurrentToken.Type == TokenType.NOT)
+            {
+                Token op = CurrentToken;
+                Advance();
+                return new UnaryExpression(op.Type, ParseUnary(), op.Line, op.Column);
+            }
+            return ParsePrimary();
         }
 
         private Expression ParsePrimary()

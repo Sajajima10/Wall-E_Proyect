@@ -65,4 +65,16 @@ namespace Interfaz.Language.AST
             Max = max;
         }
     }
+    public class UnaryExpression : Expression
+    {
+        public TokenType Operator { get; }
+        public Expression Operand { get; }
+
+        public UnaryExpression(TokenType op, Expression operand, int line, int column)
+        : base(line, column)
+        {
+            Operator = op;
+            Operand = operand;
+        }
+    }
 }

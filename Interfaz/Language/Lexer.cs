@@ -242,6 +242,7 @@ namespace Interfaz.Language
                 case "FORWARD": return new Token(TokenType.FORWARD, ident, line, column);
                 case "BACKWARD": return new Token(TokenType.BACKWARD, ident, line, column);
                 case "LOOP": return new Token(TokenType.LOOP, ident, line, column);
+                case "TO": return new Token(TokenType.TO, ident, line, column);
                 case "ENDLOOP": return new Token(TokenType.ENDLOOP, ident, line, column);
                 case "IF": return new Token(TokenType.IF, ident, line, column);
                 case "ELSE": return new Token(TokenType.ELSE, ident, line, column);
@@ -253,6 +254,9 @@ namespace Interfaz.Language
                 case "PRINT": return new Token(TokenType.PRINT, ident, line, column);
                 case "SET": return new Token(TokenType.SET, ident, line, column);
                 case "RAND": return new Token(TokenType.RAND, ident, line, column);
+                case "AND": return new Token(TokenType.AND, ident, line, column);
+                case "OR": return new Token(TokenType.OR, ident, line, column);
+                case "NOT": return new Token(TokenType.NOT, ident, line, column);
                 case "GOTO": return new Token(TokenType.GOTO, ident, line, column);
                 default: return new Token(TokenType.IDENTIFIER, ident, line, column);
             }

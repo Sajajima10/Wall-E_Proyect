@@ -132,8 +132,23 @@ namespace Interfaz.Language
                 case IfStatement ifStmt:
                     VisitIfStatement(ifStmt);
                     break;
+                case LoopStatement loopStmt:
+                    VisitLoopStatement(loopStmt);
+                    break;
                 default:
                     throw new NotImplementedException($"La sentencia de tipo '{statement.GetType().Name}' aún no está implementada en el intérprete. Línea: {statement.Line}, Columna: {statement.Column}");
+            }
+        }
+
+        private void VisitLoopStatement(LoopStatement loopStmt)
+        {
+            int from = Convert.ToInt32(VisitExpression(loopStmt.From));
+            int to = Convert.ToInt32(VisitExpression(loopStmt.To));
+            for (int i = from; i <= to; i++)
+            {
+                _environment.Set(loopStmt.Iterator, i);
+                foreach (var stmt in loopStmt.Body)
+                    VisitStatement(stmt);
             }
         }
 
@@ -153,24 +168,26 @@ namespace Interfaz.Language
                 VisitStatement(stmt);
         }
 
-        private object VisitExpression(Interfaz.Language.AST.Expression expression)
-        {
-            switch (expression)
-            {
-                case IntegerLiteral intLiteral:
-                    return intLiteral.Value;
-                case StringLiteral stringLiteral:
-                    return stringLiteral.Value;
-                case IdentifierExpression identifier:
-                    return _environment.Get(identifier.Name);
-                case BinaryExpression binaryExpr:
-                    return EvaluateBinaryExpression(binaryExpr);
-                case RandExpression randExpr:
-                    return EvaluateRandExpression(randExpr);
-                default:
-                    throw new NotImplementedException($"La expresión de tipo '{expression.GetType().Name}' aún no está implementada en el intérprete. Línea: {expression.Line}, Columna: {expression.Column}");
-            }
-        }
+       private object VisitExpression(Interfaz.Language.AST.Expression expression)
+{
+    switch (expression)
+    {
+        case IntegerLiteral intLiteral:
+            return intLiteral.Value;
+        case StringLiteral stringLiteral:
+            return stringLiteral.Value;
+        case IdentifierExpression identifier:
+            return _environment.Get(identifier.Name);
+        case BinaryExpression binaryExpr:
+            return EvaluateBinaryExpression(binaryExpr);
+        case UnaryExpression unaryExpr:
+            return EvaluateUnaryExpression(unaryExpr); // <-- Agrega esta línea
+        case RandExpression randExpr:
+            return EvaluateRandExpression(randExpr);
+        default:
+            throw new NotImplementedException($"La expresión de tipo '{expression.GetType().Name}' aún no está implementada en el intérprete. Línea: {expression.Line}, Columna: {expression.Column}");
+    }
+}
 
         private void VisitFunctionCall(FunctionCall funcCall)
         {
@@ -238,50 +255,71 @@ namespace Interfaz.Language
         }
 
         private object EvaluateBinaryExpression(BinaryExpression expr)
-        {
-            object left = VisitExpression(expr.Left);
-            object right = VisitExpression(expr.Right);
+{
+    object left = VisitExpression(expr.Left);
+    object right = VisitExpression(expr.Right);
 
-            if (left is int lInt && right is int rInt)
-            {
-                switch (expr.Operator)
-                {
-                    case TokenType.PLUS: return lInt + rInt;
-                    case TokenType.MINUS: return lInt - rInt;
-                    case TokenType.MULTIPLY: return lInt * rInt;
-                    case TokenType.DIVIDE:
-                        if (rInt == 0)
-                            throw new Exception($"Error en tiempo de ejecución en Línea {expr.Line}, Columna {expr.Column}: División por cero.");
-                        return lInt / rInt;
-                    case TokenType.MODULO:
-                        if (rInt == 0)
-                            throw new Exception($"Error en tiempo de ejecución en Línea {expr.Line}, Columna {expr.Column}: División por cero.");
-                        return lInt % rInt;
-                    case TokenType.EQUALS: return lInt == rInt;
-                    case TokenType.NOT_EQUALS: return lInt != rInt;
-                    case TokenType.LESS: return lInt < rInt;
-                    case TokenType.LESS_EQUALS: return lInt <= rInt;
-                    case TokenType.GREATER: return lInt > rInt;
-                    case TokenType.GREATER_EQUALS: return lInt >= rInt;
-                    default:
-                        throw new Exception($"Error de operación binaria en Línea {expr.Line}, Columna {expr.Column}: Operador '{expr.Operator}' no soportado para enteros.");
-                }
-            }
-            else if (left is string lStr && right is string rStr)
-            {
-                switch (expr.Operator)
-                {
-                    case TokenType.EQUALS: return lStr == rStr;
-                    case TokenType.NOT_EQUALS: return lStr != rStr;
-                    default:
-                        throw new Exception($"Error de operación binaria en Línea {expr.Line}, Columna {expr.Column}: Operador '{expr.Operator}' no soportado para cadenas.");
-                }
-            }
-            else
-            {
-                throw new Exception($"Error de tipo en Línea {expr.Line}, Columna {expr.Column}: Tipos incompatibles para la operación binaria '{expr.Operator}' (izquierda: {left?.GetType().Name}, derecha: {right?.GetType().Name}). Se esperaban enteros o cadenas compatibles.");
-            }
+    // Operadores aritméticos y de comparación para enteros
+    if (left is int lInt && right is int rInt)
+    {
+        switch (expr.Operator)
+        {
+            case TokenType.PLUS: return lInt + rInt;
+            case TokenType.MINUS: return lInt - rInt;
+            case TokenType.MULTIPLY: return lInt * rInt;
+            case TokenType.DIVIDE:
+                if (rInt == 0)
+                    throw new Exception($"Error en tiempo de ejecución en Línea {expr.Line}, Columna {expr.Column}: División por cero.");
+                return lInt / rInt;
+            case TokenType.MODULO:
+                if (rInt == 0)
+                    throw new Exception($"Error en tiempo de ejecución en Línea {expr.Line}, Columna {expr.Column}: División por cero.");
+                return lInt % rInt;
+            case TokenType.EQUALS: return lInt == rInt;
+            case TokenType.NOT_EQUALS: return lInt != rInt;
+            case TokenType.LESS: return lInt < rInt;
+            case TokenType.LESS_EQUALS: return lInt <= rInt;
+            case TokenType.GREATER: return lInt > rInt;
+            case TokenType.GREATER_EQUALS: return lInt >= rInt;
         }
+    }
+    // Operadores lógicos para booleanos
+    else if (left is bool lBool && right is bool rBool)
+    {
+        switch (expr.Operator)
+        {
+            case TokenType.AND: return lBool && rBool;
+            case TokenType.OR: return lBool || rBool;
+            case TokenType.EQUALS: return lBool == rBool;
+            case TokenType.NOT_EQUALS: return lBool != rBool;
+            default:
+                throw new Exception($"Error de operación binaria en Línea {expr.Line}, Columna {expr.Column}: Operador '{expr.Operator}' no soportado para booleanos.");
+        }
+    }
+    // Operadores para cadenas
+    else if (left is string lStr && right is string rStr)
+    {
+        switch (expr.Operator)
+        {
+            case TokenType.EQUALS: return lStr == rStr;
+            case TokenType.NOT_EQUALS: return lStr != rStr;
+            default:
+                throw new Exception($"Error de operación binaria en Línea {expr.Line}, Columna {expr.Column}: Operador '{expr.Operator}' no soportado para cadenas.");
+        }
+    }
+    // Operadores lógicos para cualquier tipo (int, bool, etc.)
+    else
+    {
+        switch (expr.Operator)
+        {
+            case TokenType.AND: return ToBool(left) && ToBool(right);
+            case TokenType.OR: return ToBool(left) || ToBool(right);
+        }
+        throw new Exception($"Error de tipo en Línea {expr.Line}, Columna {expr.Column}: Tipos incompatibles para la operación binaria '{expr.Operator}' (izquierda: {left?.GetType().Name}, derecha: {right?.GetType().Name}). Se esperaban enteros, booleanos o cadenas compatibles.");
+    }
+
+    throw new Exception($"Error de operación binaria en Línea {expr.Line}, Columna {expr.Column}: Operador '{expr.Operator}' no soportado.");
+}
 
         private object EvaluateRandExpression(RandExpression expr)
         {
@@ -383,6 +421,24 @@ namespace Interfaz.Language
             Point end = new Point(endX, endY);
             DrawLineOnBitmap(start, end, 1);
             _currentPosition = end;
+        }
+        private object EvaluateUnaryExpression(UnaryExpression expr)
+        {
+            var operand = VisitExpression(expr.Operand);
+            switch (expr.Operator)
+            {
+                case TokenType.NOT:
+                    return !ToBool(operand);
+                default:
+                throw new Exception($"Operador unario '{expr.Operator}' no soportado.");
+            }
+        }
+
+        private bool ToBool(object value)
+        {
+            if (value is bool b) return b;
+            if (value is int i) return i != 0;
+            return value != null;
         }
     }
 }

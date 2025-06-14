@@ -94,4 +94,21 @@ namespace Interfaz.Language.AST
             FalseBlock = falseBlock;
         }
     }
+
+    public class LoopStatement : Statement
+    {
+        public string Iterator { get; }
+        public Expression From { get; }
+        public Expression To { get; }
+        public List<Statement> Body { get; }
+
+        public LoopStatement(string iterator, Expression from, Expression to, List<Statement> body, int line, int column)
+        : base(line, column)
+        {
+            Iterator = iterator;
+            From = from;
+            To = to;
+            Body = body;
+        }
+    }
 }

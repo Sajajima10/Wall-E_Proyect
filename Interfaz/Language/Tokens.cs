@@ -13,6 +13,7 @@ namespace Interfaz.Language
         FORWARD,
         BACKWARD,
         LOOP,
+        TO,
         ENDLOOP,
         IF,
         ELSE,
@@ -40,6 +41,9 @@ namespace Interfaz.Language
         LESS_EQUALS,  // <=
         GREATER_EQUALS,// >=
         MODULO, // %
+        AND,          // &&
+        OR,           // ||
+        NOT,          // !
 
         // Delimitadores / Símbolos
         LEFT_PAREN,     // (
