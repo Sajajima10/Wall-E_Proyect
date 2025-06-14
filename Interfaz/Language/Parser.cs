@@ -63,58 +63,112 @@ namespace Interfaz.Language
         }
 
         private Statement ParseStatement()
+        {
+            Statement statement = null;
+            Token current = CurrentToken;
+
+            switch (current.Type)
+            {
+                case TokenType.SPAWN:
+                case TokenType.COLOR:
+                case TokenType.DRAWLINE:
+                case TokenType.MOVE:
+                case TokenType.TURN:
+                case TokenType.FORWARD:
+                case TokenType.BACKWARD:
+                    statement = ParseFunctionLikeStatement();
+                    break;
+                case TokenType.IF:
+                    return ParseIfStatement();
+                case TokenType.CALL:
+                case TokenType.PRINT:
+                case TokenType.RAND:
+                    statement = ParseFunctionLikeStatement();
+                    break;
+
+                case TokenType.SET:
+                    statement = ParseAssignmentStatement();
+                    break;
+
+                case TokenType.GOTO:
+                    statement = ParseGoToStatement();
+                    break;
+
+                case TokenType.IDENTIFIER:
+                    // Asignación tipo i <- expr
+                    if (PeekToken().Type == TokenType.ASSIGN_LEFT)
+                    {
+                        statement = ParseLeftAssignStatement();
+                        break;
+                    }
+                    // Si la línea es solo un identificador seguido de NEWLINE o EOF, es una etiqueta
+                    if (PeekToken().Type == TokenType.NEWLINE || PeekToken().Type == TokenType.EOF)
+                    {
+                        statement = ParseLabelStatement();
+                        break;
+                    }
+                    goto default;
+
+                default:
+                    throw new Exception($"Error de sintaxis en Línea {current.Line}, Columna {current.Column}: Token inesperado '{current.Value}' de tipo {current.Type}. Se esperaba el inicio de una instrucción.");
+            }
+
+            while (CurrentToken.Type == TokenType.NEWLINE)
+            {
+                Advance();
+            }
+
+            return statement;
+        }
+
+        private IfStatement ParseIfStatement()
 {
-    Statement statement = null;
-    Token current = CurrentToken;
+    Token ifToken = Eat(TokenType.IF);
+    Expression condition = ParseExpression();
 
-    switch (current.Type)
-    {
-        case TokenType.SPAWN:
-        case TokenType.COLOR:
-        case TokenType.DRAWLINE:
-        case TokenType.MOVE:
-        case TokenType.TURN:
-        case TokenType.FORWARD:
-        case TokenType.BACKWARD:
-        case TokenType.CALL:
-        case TokenType.PRINT:
-        case TokenType.RAND:
-            statement = ParseFunctionLikeStatement();
-            break;
+    var trueBlock = new List<Statement>();
+    var falseBlock = new List<Statement>();
 
-        case TokenType.SET:
-            statement = ParseAssignmentStatement();
-            break;
-
-        case TokenType.GOTO:
-            statement = ParseGoToStatement();
-            break;
-
-        case TokenType.IDENTIFIER:
-            // Asignación tipo i <- expr
-            if (PeekToken().Type == TokenType.ASSIGN_LEFT)
-            {
-                statement = ParseLeftAssignStatement();
-                break;
-            }
-            // Si la línea es solo un identificador seguido de NEWLINE o EOF, es una etiqueta
-            if (PeekToken().Type == TokenType.NEWLINE || PeekToken().Type == TokenType.EOF)
-            {
-                statement = ParseLabelStatement();
-                break;
-            }
-            goto default;
-
-        default:
-            throw new Exception($"Error de sintaxis en Línea {current.Line}, Columna {current.Column}: Token inesperado '{current.Value}' de tipo {current.Type}. Se esperaba el inicio de una instrucción.");
-    }
-
+    // Salta líneas vacías antes del bloque verdadero
     while (CurrentToken.Type == TokenType.NEWLINE)
-    {
         Advance();
+
+    while (CurrentToken.Type != TokenType.ELSE && CurrentToken.Type != TokenType.ENDIF && CurrentToken.Type != TokenType.EOF)
+    {
+        // Salta líneas vacías dentro del bloque
+        while (CurrentToken.Type == TokenType.NEWLINE)
+            Advance();
+
+        if (CurrentToken.Type == TokenType.ELSE || CurrentToken.Type == TokenType.ENDIF || CurrentToken.Type == TokenType.EOF)
+            break;
+
+        trueBlock.Add(ParseStatement());
     }
 
-    return statement;
+    if (CurrentToken.Type == TokenType.ELSE)
+    {
+        Eat(TokenType.ELSE);
+
+        // Salta líneas vacías antes del bloque falso
+        while (CurrentToken.Type == TokenType.NEWLINE)
+            Advance();
+
+        while (CurrentToken.Type != TokenType.ENDIF && CurrentToken.Type != TokenType.EOF)
+        {
+            // Salta líneas vacías dentro del bloque
+            while (CurrentToken.Type == TokenType.NEWLINE)
+                Advance();
+
+            if (CurrentToken.Type == TokenType.ENDIF || CurrentToken.Type == TokenType.EOF)
+                break;
+
+            falseBlock.Add(ParseStatement());
+        }
+    }
+
+    Eat(TokenType.ENDIF);
+
+    return new IfStatement(condition, trueBlock, falseBlock, ifToken.Line, ifToken.Column);
 }
 
         private LabelStatement ParseLabelStatement()
@@ -176,14 +230,14 @@ namespace Interfaz.Language
         }
 
         private Assignment ParseLeftAssignStatement()
-{
-    Token varToken = Eat(TokenType.IDENTIFIER);
-    int line = varToken.Line;
-    int column = varToken.Column;
-    Eat(TokenType.ASSIGN_LEFT);
-    Expression value = ParseExpression();
-    return new Assignment(varToken.Value, value, line, column);
-}
+        {
+            Token varToken = Eat(TokenType.IDENTIFIER);
+            int line = varToken.Line;
+            int column = varToken.Column;
+            Eat(TokenType.ASSIGN_LEFT);
+            Expression value = ParseExpression();
+            return new Assignment(varToken.Value, value, line, column);
+        }
 
         private Assignment ParseAssignmentStatement()
         {

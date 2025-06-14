@@ -79,4 +79,19 @@ namespace Interfaz.Language.AST
             Condition = condition;
         }
     }
+
+    public class IfStatement : Statement
+    {
+        public Expression Condition { get; }
+        public List<Statement> TrueBlock { get; }
+        public List<Statement> FalseBlock { get; }
+
+        public IfStatement(Expression condition, List<Statement> trueBlock, List<Statement> falseBlock, int line, int column)
+        : base(line, column)
+        {
+            Condition = condition;
+            TrueBlock = trueBlock;
+            FalseBlock = falseBlock;
+        }
+    }
 }

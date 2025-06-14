@@ -129,9 +129,28 @@ namespace Interfaz.Language
                 case PrintStatement printStmt:
                     VisitPrintStatement(printStmt);
                     break;
+                case IfStatement ifStmt:
+                    VisitIfStatement(ifStmt);
+                    break;
                 default:
                     throw new NotImplementedException($"La sentencia de tipo '{statement.GetType().Name}' aún no está implementada en el intérprete. Línea: {statement.Line}, Columna: {statement.Column}");
             }
+        }
+
+        private void VisitIfStatement(IfStatement ifStmt)
+        {
+            var cond = VisitExpression(ifStmt.Condition);
+            bool result = false;
+            if (cond is bool b)
+                result = b;
+            else if (cond is int i)
+                result = i != 0;
+            else
+                throw new Exception("La condición del IF debe ser booleana o entera.");
+
+            var block = result ? ifStmt.TrueBlock : ifStmt.FalseBlock;
+            foreach (var stmt in block)
+                VisitStatement(stmt);
         }
 
         private object VisitExpression(Interfaz.Language.AST.Expression expression)
