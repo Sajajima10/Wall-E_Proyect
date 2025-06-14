@@ -122,54 +122,54 @@ namespace Interfaz.Language
         }
 
         private IfStatement ParseIfStatement()
-{
-    Token ifToken = Eat(TokenType.IF);
-    Expression condition = ParseExpression();
-
-    var trueBlock = new List<Statement>();
-    var falseBlock = new List<Statement>();
-
-    // Salta líneas vacías antes del bloque verdadero
-    while (CurrentToken.Type == TokenType.NEWLINE)
-        Advance();
-
-    while (CurrentToken.Type != TokenType.ELSE && CurrentToken.Type != TokenType.ENDIF && CurrentToken.Type != TokenType.EOF)
-    {
-        // Salta líneas vacías dentro del bloque
-        while (CurrentToken.Type == TokenType.NEWLINE)
-            Advance();
-
-        if (CurrentToken.Type == TokenType.ELSE || CurrentToken.Type == TokenType.ENDIF || CurrentToken.Type == TokenType.EOF)
-            break;
-
-        trueBlock.Add(ParseStatement());
-    }
-
-    if (CurrentToken.Type == TokenType.ELSE)
-    {
-        Eat(TokenType.ELSE);
-
-        // Salta líneas vacías antes del bloque falso
-        while (CurrentToken.Type == TokenType.NEWLINE)
-            Advance();
-
-        while (CurrentToken.Type != TokenType.ENDIF && CurrentToken.Type != TokenType.EOF)
         {
-            // Salta líneas vacías dentro del bloque
+            Token ifToken = Eat(TokenType.IF);
+            Expression condition = ParseExpression();
+
+            var trueBlock = new List<Statement>();
+            var falseBlock = new List<Statement>();
+
+            // Salta líneas vacías antes del bloque verdadero
             while (CurrentToken.Type == TokenType.NEWLINE)
                 Advance();
 
-            if (CurrentToken.Type == TokenType.ENDIF || CurrentToken.Type == TokenType.EOF)
-                break;
+            while (CurrentToken.Type != TokenType.ELSE && CurrentToken.Type != TokenType.ENDIF && CurrentToken.Type != TokenType.EOF)
+            {
+                // Salta líneas vacías dentro del bloque
+                while (CurrentToken.Type == TokenType.NEWLINE)
+                    Advance();
 
-            falseBlock.Add(ParseStatement());
+                if (CurrentToken.Type == TokenType.ELSE || CurrentToken.Type == TokenType.ENDIF || CurrentToken.Type == TokenType.EOF)
+                    break;
+
+                trueBlock.Add(ParseStatement());
+            }
+
+            if (CurrentToken.Type == TokenType.ELSE)
+            {
+                Eat(TokenType.ELSE);
+
+                // Salta líneas vacías antes del bloque falso
+                while (CurrentToken.Type == TokenType.NEWLINE)
+                    Advance();
+
+                while (CurrentToken.Type != TokenType.ENDIF && CurrentToken.Type != TokenType.EOF)
+                {
+                    // Salta líneas vacías dentro del bloque
+                    while (CurrentToken.Type == TokenType.NEWLINE)
+                        Advance();
+
+                    if (CurrentToken.Type == TokenType.ENDIF || CurrentToken.Type == TokenType.EOF)
+                        break;
+
+                    falseBlock.Add(ParseStatement());
+                }
+            }
+
+            Eat(TokenType.ENDIF);
+
+            return new IfStatement(condition, trueBlock, falseBlock, ifToken.Line, ifToken.Column);
         }
-    }
-
-    Eat(TokenType.ENDIF);
-
-    return new IfStatement(condition, trueBlock, falseBlock, ifToken.Line, ifToken.Column);
-}
 
         private LabelStatement ParseLabelStatement()
         {
@@ -294,7 +294,7 @@ namespace Interfaz.Language
         {
             Expression expr = ParsePrimary();
 
-            while (CurrentToken.Type == TokenType.MULTIPLY || CurrentToken.Type == TokenType.DIVIDE)
+            while (CurrentToken.Type == TokenType.MULTIPLY || CurrentToken.Type == TokenType.DIVIDE || CurrentToken.Type == TokenType.MODULO)
             {
                 Token op = CurrentToken;
                 Advance();

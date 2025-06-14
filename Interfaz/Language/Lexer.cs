@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Interfaz.Language
 {
@@ -13,7 +12,7 @@ namespace Interfaz.Language
 
         public Lexer(string input)
         {
-            _input = input.Replace("\r\n", "\n"); // Normaliza saltos de línea
+            _input = input.Replace("\r\n", "\n");
             _position = 0;
             _line = 1;
             _column = 1;
@@ -21,33 +20,18 @@ namespace Interfaz.Language
 
         private char CurrentChar => _position < _input.Length ? _input[_position] : '\0';
 
-        private void Advance(int count = 1)
+        private void Advance()
         {
-            for (int i = 0; i < count; i++)
+            if (CurrentChar == '\n')
             {
-                if (CurrentChar == '\n')
-                {
-                    _line++;
-                    _column = 1;
-                }
-                else
-                {
-                    _column++;
-                }
-                _position++;
+                _line++;
+                _column = 1;
             }
-        }
-
-        private char Peek(int offset = 1)
-        {
-            int pos = _position + offset;
-            return pos < _input.Length ? _input[pos] : '\0';
-        }
-
-        private void SkipWhitespace()
-        {
-            while (char.IsWhiteSpace(CurrentChar) && CurrentChar != '\n' && CurrentChar != '\0')
-                Advance();
+            else
+            {
+                _column++;
+            }
+            _position++;
         }
 
         public List<Token> Tokenize()
@@ -56,214 +40,222 @@ namespace Interfaz.Language
 
             while (_position < _input.Length)
             {
-                SkipWhitespace();
-
+                char c = CurrentChar;
                 int startLine = _line;
                 int startColumn = _column;
 
-                if (CurrentChar == '\0')
-                    break;
+                if (char.IsWhiteSpace(c) && c != '\n')
+                {
+                    Advance();
+                    continue;
+                }
 
-                // Saltos de línea
-                if (CurrentChar == '\n')
+                if (c == '\n')
                 {
                     tokens.Add(new Token(TokenType.NEWLINE, "\\n", startLine, startColumn));
                     Advance();
                     continue;
                 }
 
-                // Delimitadores y símbolos
-                if (CurrentChar == '(')
+                if (char.IsDigit(c))
+                {
+                    string number = "";
+                    while (char.IsDigit(CurrentChar))
+                    {
+                        number += CurrentChar;
+                        Advance();
+                    }
+                    tokens.Add(new Token(TokenType.INTEGER_LITERAL, number, startLine, startColumn));
+                    continue;
+                }
+
+                if (c == '"')
+                {
+                    Advance();
+                    string str = "";
+                    while (CurrentChar != '"' && CurrentChar != '\0')
+                    {
+                        str += CurrentChar;
+                        Advance();
+                    }
+                    Advance();
+                    tokens.Add(new Token(TokenType.STRING_LITERAL, str, startLine, startColumn));
+                    continue;
+                }
+
+                if (char.IsLetter(c) || c == '_')
+                {
+                    string ident = "";
+                    while (char.IsLetterOrDigit(CurrentChar) || CurrentChar == '_')
+                    {
+                        ident += CurrentChar;
+                        Advance();
+                    }
+                    tokens.Add(LexerUtils.MatchKeywordOrIdentifier(ident, startLine, startColumn));
+                    continue;
+                }
+
+                // Operadores y símbolos
+                if (c == '+')
+                {
+                    tokens.Add(new Token(TokenType.PLUS, "+", startLine, startColumn));
+                    Advance();
+                    continue;
+                }
+                if (c == '-')
+                {
+                    tokens.Add(new Token(TokenType.MINUS, "-", startLine, startColumn));
+                    Advance();
+                    continue;
+                }
+                if (c == '*')
+                {
+                    tokens.Add(new Token(TokenType.MULTIPLY, "*", startLine, startColumn));
+                    Advance();
+                    continue;
+                }
+                if (c == '/')
+                {
+                    tokens.Add(new Token(TokenType.DIVIDE, "/", startLine, startColumn));
+                    Advance();
+                    continue;
+                }
+                if (c == '%')
+                {
+                    tokens.Add(new Token(TokenType.MODULO, "%", startLine, startColumn));
+                    Advance();
+                    continue;
+                }
+                if (c == '=')
+                {
+                    if (Peek() == '=')
+                    {
+                        Advance(); Advance();
+                        tokens.Add(new Token(TokenType.EQUALS, "==", startLine, startColumn));
+                    }
+                    else
+                    {
+                        tokens.Add(new Token(TokenType.ASSIGN, "=", startLine, startColumn));
+                        Advance();
+                    }
+                    continue;
+                }
+                if (c == '!')
+                {
+                    if (Peek() == '=')
+                    {
+                        Advance(); Advance();
+                        tokens.Add(new Token(TokenType.NOT_EQUALS, "!=", startLine, startColumn));
+                        continue;
+                    }
+                }
+                if (c == '<')
+                {
+                    if (Peek() == '=')
+                    {
+                        Advance(); Advance();
+                        tokens.Add(new Token(TokenType.LESS_EQUALS, "<=", startLine, startColumn));
+                    }
+                    else if (Peek() == '-')
+                    {
+                        Advance(); Advance();
+                        tokens.Add(new Token(TokenType.ASSIGN_LEFT, "<-", startLine, startColumn));
+                    }
+                    else
+                    {
+                        tokens.Add(new Token(TokenType.LESS, "<", startLine, startColumn));
+                        Advance();
+                    }
+                    continue;
+                }
+                if (c == '>')
+                {
+                    if (Peek() == '=')
+                    {
+                        Advance(); Advance();
+                        tokens.Add(new Token(TokenType.GREATER_EQUALS, ">=", startLine, startColumn));
+                    }
+                    else
+                    {
+                        tokens.Add(new Token(TokenType.GREATER, ">", startLine, startColumn));
+                        Advance();
+                    }
+                    continue;
+                }
+                if (c == '(')
                 {
                     tokens.Add(new Token(TokenType.LEFT_PAREN, "(", startLine, startColumn));
                     Advance();
                     continue;
                 }
-                if (CurrentChar == ')')
+                if (c == ')')
                 {
                     tokens.Add(new Token(TokenType.RIGHT_PAREN, ")", startLine, startColumn));
                     Advance();
                     continue;
                 }
-                if (CurrentChar == '[')
+                if (c == '[')
                 {
                     tokens.Add(new Token(TokenType.LEFT_BRACKET, "[", startLine, startColumn));
                     Advance();
                     continue;
                 }
-                if (CurrentChar == ']')
+                if (c == ']')
                 {
                     tokens.Add(new Token(TokenType.RIGHT_BRACKET, "]", startLine, startColumn));
                     Advance();
                     continue;
                 }
-                if (CurrentChar == ',')
+                if (c == ',')
                 {
                     tokens.Add(new Token(TokenType.COMMA, ",", startLine, startColumn));
                     Advance();
                     continue;
                 }
 
-                // Operador de asignación izquierda <-
-                if (CurrentChar == '<' && Peek() == '-')
-                {
-                    tokens.Add(new Token(TokenType.ASSIGN_LEFT, "<-", startLine, startColumn));
-                    Advance(2);
-                    continue;
-                }
-
-                // Operadores de dos caracteres
-                if (CurrentChar == '=' && Peek() == '=')
-                {
-                    tokens.Add(new Token(TokenType.EQUALS, "==", startLine, startColumn));
-                    Advance(2);
-                    continue;
-                }
-                if (CurrentChar == '!' && Peek() == '=')
-                {
-                    tokens.Add(new Token(TokenType.NOT_EQUALS, "!=", startLine, startColumn));
-                    Advance(2);
-                    continue;
-                }
-                if (CurrentChar == '<' && Peek() == '=')
-                {
-                    tokens.Add(new Token(TokenType.LESS_EQUALS, "<=", startLine, startColumn));
-                    Advance(2);
-                    continue;
-                }
-                if (CurrentChar == '>' && Peek() == '=')
-                {
-                    tokens.Add(new Token(TokenType.GREATER_EQUALS, ">=", startLine, startColumn));
-                    Advance(2);
-                    continue;
-                }
-
-                // Operadores de un caracter
-                if (CurrentChar == '+')
-                {
-                    tokens.Add(new Token(TokenType.PLUS, "+", startLine, startColumn));
-                    Advance();
-                    continue;
-                }
-                if (CurrentChar == '-')
-                {
-                    tokens.Add(new Token(TokenType.MINUS, "-", startLine, startColumn));
-                    Advance();
-                    continue;
-                }
-                if (CurrentChar == '*')
-                {
-                    tokens.Add(new Token(TokenType.MULTIPLY, "*", startLine, startColumn));
-                    Advance();
-                    continue;
-                }
-                if (CurrentChar == '/')
-                {
-                    tokens.Add(new Token(TokenType.DIVIDE, "/", startLine, startColumn));
-                    Advance();
-                    continue;
-                }
-                if (CurrentChar == '=')
-                {
-                    tokens.Add(new Token(TokenType.ASSIGN, "=", startLine, startColumn));
-                    Advance();
-                    continue;
-                }
-                if (CurrentChar == '<')
-                {
-                    tokens.Add(new Token(TokenType.LESS, "<", startLine, startColumn));
-                    Advance();
-                    continue;
-                }
-                if (CurrentChar == '>')
-                {
-                    tokens.Add(new Token(TokenType.GREATER, ">", startLine, startColumn));
-                    Advance();
-                    continue;
-                }
-
-                // Literales numéricos
-                if (char.IsDigit(CurrentChar) || (CurrentChar == '-' && char.IsDigit(Peek())))
-                {
-                    int numberStart = _position;
-                    int numberLine = _line;
-                    int numberColumn = _column;
-                    if (CurrentChar == '-')
-                        Advance();
-                    while (char.IsDigit(CurrentChar))
-                        Advance();
-                    string numberStr = _input.Substring(numberStart, _position - numberStart);
-                    tokens.Add(new Token(TokenType.INTEGER_LITERAL, numberStr, numberLine, numberColumn));
-                    continue;
-                }
-
-                // Literales de cadena
-                if (CurrentChar == '"')
-                {
-                    int strLine = _line;
-                    int strColumn = _column;
-                    Advance(); // Salta la comilla inicial
-                    var sb = new StringBuilder();
-                    while (CurrentChar != '"' && CurrentChar != '\0' && CurrentChar != '\n')
-                    {
-                        sb.Append(CurrentChar);
-                        Advance();
-                    }
-                    if (CurrentChar == '"')
-                        Advance(); // Salta la comilla final
-                    else
-                        throw new Exception($"Cadena sin cerrar en línea {strLine}, columna {strColumn}");
-                    tokens.Add(new Token(TokenType.STRING_LITERAL, sb.ToString(), strLine, strColumn));
-                    continue;
-                }
-
-                // Palabras clave e identificadores
-                if (char.IsLetter(CurrentChar))
-                {
-                    int idStart = _position;
-                    int idLine = _line;
-                    int idColumn = _column;
-                    while (char.IsLetterOrDigit(CurrentChar) || CurrentChar == '-')
-                        Advance();
-                    string word = _input.Substring(idStart, _position - idStart);
-
-                    TokenType type = TokenType.IDENTIFIER;
-                    switch (word.ToUpper())
-                    {
-                        case "SPAWN": type = TokenType.SPAWN; break;
-                        case "COLOR": type = TokenType.COLOR; break;
-                        case "DRAWLINE": type = TokenType.DRAWLINE; break;
-                        case "MOVE": type = TokenType.MOVE; break;
-                        case "TURN": type = TokenType.TURN; break;
-                        case "FORWARD": type = TokenType.FORWARD; break;
-                        case "BACKWARD": type = TokenType.BACKWARD; break;
-                        case "LOOP": type = TokenType.LOOP; break;
-                        case "ENDLOOP": type = TokenType.ENDLOOP; break;
-                        case "IF": type = TokenType.IF; break;
-                        case "ELSE": type = TokenType.ELSE; break;
-                        case "ENDIF": type = TokenType.ENDIF; break;
-                        case "FUNC": type = TokenType.FUNC; break;
-                        case "ENDFUNC": type = TokenType.ENDFUNC; break;
-                        case "CALL": type = TokenType.CALL; break;
-                        case "RETURN": type = TokenType.RETURN; break;
-                        case "PRINT": type = TokenType.PRINT; break;
-                        case "SET": type = TokenType.SET; break;
-                        case "RAND": type = TokenType.RAND; break;
-                        case "GOTO": type = TokenType.GOTO; break;
-                        case "LABEL": type = TokenType.LABEL; break;
-                        default: type = TokenType.IDENTIFIER; break;
-                    }
-                    tokens.Add(new Token(type, word, idLine, idColumn));
-                    continue;
-                }
-
-                // Caracter desconocido
-                tokens.Add(new Token(TokenType.UNKNOWN, CurrentChar.ToString(), startLine, startColumn));
+                // Si no se reconoce el carácter
+                tokens.Add(new Token(TokenType.UNKNOWN, c.ToString(), startLine, startColumn));
                 Advance();
             }
 
             tokens.Add(new Token(TokenType.EOF, "EOF", _line, _column));
             return tokens;
+        }
+
+        private char Peek()
+        {
+            return _position + 1 < _input.Length ? _input[_position + 1] : '\0';
+        }
+    }
+
+    public static class LexerUtils
+    {
+        public static Token MatchKeywordOrIdentifier(string ident, int line, int column)
+        {
+            switch (ident.ToUpper())
+            {
+                case "SPAWN": return new Token(TokenType.SPAWN, ident, line, column);
+                case "COLOR": return new Token(TokenType.COLOR, ident, line, column);
+                case "DRAWLINE": return new Token(TokenType.DRAWLINE, ident, line, column);
+                case "MOVE": return new Token(TokenType.MOVE, ident, line, column);
+                case "TURN": return new Token(TokenType.TURN, ident, line, column);
+                case "FORWARD": return new Token(TokenType.FORWARD, ident, line, column);
+                case "BACKWARD": return new Token(TokenType.BACKWARD, ident, line, column);
+                case "LOOP": return new Token(TokenType.LOOP, ident, line, column);
+                case "ENDLOOP": return new Token(TokenType.ENDLOOP, ident, line, column);
+                case "IF": return new Token(TokenType.IF, ident, line, column);
+                case "ELSE": return new Token(TokenType.ELSE, ident, line, column);
+                case "ENDIF": return new Token(TokenType.ENDIF, ident, line, column);
+                case "FUNC": return new Token(TokenType.FUNC, ident, line, column);
+                case "ENDFUNC": return new Token(TokenType.ENDFUNC, ident, line, column);
+                case "CALL": return new Token(TokenType.CALL, ident, line, column);
+                case "RETURN": return new Token(TokenType.RETURN, ident, line, column);
+                case "PRINT": return new Token(TokenType.PRINT, ident, line, column);
+                case "SET": return new Token(TokenType.SET, ident, line, column);
+                case "RAND": return new Token(TokenType.RAND, ident, line, column);
+                case "GOTO": return new Token(TokenType.GOTO, ident, line, column);
+                default: return new Token(TokenType.IDENTIFIER, ident, line, column);
+            }
         }
     }
 }

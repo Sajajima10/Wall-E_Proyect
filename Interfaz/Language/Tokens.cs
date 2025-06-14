@@ -39,6 +39,7 @@ namespace Interfaz.Language
         GREATER,      // >
         LESS_EQUALS,  // <=
         GREATER_EQUALS,// >=
+        MODULO, // %
 
         // Delimitadores / Símbolos
         LEFT_PAREN,     // (

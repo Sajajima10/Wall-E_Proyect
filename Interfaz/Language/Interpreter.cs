@@ -253,6 +253,10 @@ namespace Interfaz.Language
                         if (rInt == 0)
                             throw new Exception($"Error en tiempo de ejecución en Línea {expr.Line}, Columna {expr.Column}: División por cero.");
                         return lInt / rInt;
+                    case TokenType.MODULO:
+                        if (rInt == 0)
+                            throw new Exception($"Error en tiempo de ejecución en Línea {expr.Line}, Columna {expr.Column}: División por cero.");
+                        return lInt % rInt;
                     case TokenType.EQUALS: return lInt == rInt;
                     case TokenType.NOT_EQUALS: return lInt != rInt;
                     case TokenType.LESS: return lInt < rInt;
