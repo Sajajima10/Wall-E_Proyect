@@ -1,62 +1,81 @@
-using System.Collections.Generic;
-using Interfaz.Language.AST;
-
 namespace Interfaz.Language.AST
 {
-    // Clase base para todas las sentencias
-    public abstract class Statement : AstNode
+    public abstract class Statement
     {
-        protected Statement(int line, int column) : base(line, column) { }
+        public int Line { get; }
+        public int Column { get; }
+        protected Statement(int line, int column)
+        {
+            Line = line;
+            Column = column;
+        }
     }
 
-    // Representa el programa completo (una lista de sentencias)
-    public class ProgramNode : AstNode
+    public class ProgramNode : Statement
     {
         public List<Statement> Statements { get; }
-
         public ProgramNode(List<Statement> statements, int line, int column) : base(line, column)
         {
             Statements = statements;
         }
     }
 
-    // Representa una llamada a función (ej: Spawn(10, 20), Move(x, y))
-    public class FunctionCall : Statement
-    {
-        public string FunctionName { get; }
-        public List<Expression> Arguments { get; }
-
-        public FunctionCall(string functionName, List<Expression> arguments, int line, int column)
-            : base(line, column)
-        {
-            FunctionName = functionName;
-            Arguments = arguments;
-        }
-    }
-
-    // Representa una asignación (ej: Set(x, 10))
     public class Assignment : Statement
     {
         public string VariableName { get; }
         public Expression Value { get; }
-
-        public Assignment(string variableName, Expression value, int line, int column)
-            : base(line, column)
+        public Assignment(string variableName, Expression value, int line, int column) : base(line, column)
         {
             VariableName = variableName;
             Value = value;
         }
     }
 
-    // Representa la instrucción Print (ej: Print("Hello World"))
     public class PrintStatement : Statement
     {
         public Expression Expression { get; }
-
-        public PrintStatement(Expression expression, int line, int column)
-            : base(line, column)
+        public PrintStatement(Expression expression, int line, int column) : base(line, column)
         {
             Expression = expression;
+        }
+    }
+
+    public class FunctionCall : Expression
+    {
+        public string FunctionName { get; }
+        public List<Expression> Arguments { get; }
+        public FunctionCall(string functionName, List<Expression> arguments, int line, int column) : base(line, column)
+        {
+            FunctionName = functionName;
+            Arguments = arguments;
+        }
+    }
+
+    public class IfStatement : Statement
+    {
+        public Expression Condition { get; }
+        public List<Statement> TrueBlock { get; }
+        public List<Statement> FalseBlock { get; }
+        public IfStatement(Expression condition, List<Statement> trueBlock, List<Statement> falseBlock, int line, int column) : base(line, column)
+        {
+            Condition = condition;
+            TrueBlock = trueBlock;
+            FalseBlock = falseBlock;
+        }
+    }
+
+    public class LoopStatement : Statement
+    {
+        public string Iterator { get; }
+        public Expression From { get; }
+        public Expression To { get; }
+        public List<Statement> Body { get; }
+        public LoopStatement(string iterator, Expression from, Expression to, List<Statement> body, int line, int column) : base(line, column)
+        {
+            Iterator = iterator;
+            From = from;
+            To = to;
+            Body = body;
         }
     }
 
@@ -80,35 +99,38 @@ namespace Interfaz.Language.AST
         }
     }
 
-    public class IfStatement : Statement
+    // --- FUNCIONES DE USUARIO ---
+    public class FunctionDefinition : Statement
     {
-        public Expression Condition { get; }
-        public List<Statement> TrueBlock { get; }
-        public List<Statement> FalseBlock { get; }
-
-        public IfStatement(Expression condition, List<Statement> trueBlock, List<Statement> falseBlock, int line, int column)
-        : base(line, column)
-        {
-            Condition = condition;
-            TrueBlock = trueBlock;
-            FalseBlock = falseBlock;
-        }
-    }
-
-    public class LoopStatement : Statement
-    {
-        public string Iterator { get; }
-        public Expression From { get; }
-        public Expression To { get; }
+        public string Name { get; }
+        public List<string> Parameters { get; }
         public List<Statement> Body { get; }
 
-        public LoopStatement(string iterator, Expression from, Expression to, List<Statement> body, int line, int column)
-        : base(line, column)
+        public FunctionDefinition(string name, List<string> parameters, List<Statement> body, int line, int column)
+            : base(line, column)
         {
-            Iterator = iterator;
-            From = from;
-            To = to;
+            Name = name;
+            Parameters = parameters;
             Body = body;
         }
     }
+
+    public class ReturnStatement : Statement
+    {
+        public Expression Value { get; }
+        public ReturnStatement(Expression value, int line, int column) : base(line, column)
+        {
+            Value = value;
+        }
+    }
+    public class FunctionCallStatement : Statement
+{
+    public FunctionCall Call { get; }
+
+    public FunctionCallStatement(FunctionCall call, int line, int column)
+        : base(line, column)
+    {
+        Call = call;
+    }
+}
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Interfaz.Language.AST;
 using System.Windows.Media;
 using System.Windows;
@@ -18,6 +19,8 @@ namespace Interfaz.Language
         private double _currentRotation;
 
         public event Action<string> OnOutputMessage;
+
+        private Dictionary<string, FunctionDefinition> _functions = new();
 
         public Interpreter(WriteableBitmap bitmap)
         {
@@ -57,7 +60,14 @@ namespace Interfaz.Language
             _currentRotation = 0;
             ClearBitmap();
 
-            // Mapea etiquetas a índices
+            // 1. Guarda todas las funciones definidas por el usuario
+            foreach (var stmt in program.Statements)
+            {
+                if (stmt is FunctionDefinition funcDef)
+                    _functions[funcDef.Name] = funcDef;
+            }
+
+            // 2. Ejecuta el resto normalmente (ignora definiciones de función)
             var labelMap = new Dictionary<string, int>();
             for (int i = 0; i < program.Statements.Count; i++)
             {
@@ -71,15 +81,25 @@ namespace Interfaz.Language
             {
                 var statement = program.Statements[pc];
 
-                if (!spawnCalled && !(statement is FunctionCall funcCall && funcCall.FunctionName == "Spawn"))
-                    throw new Exception($"El código debe comenzar con 'Spawn'.");
-
-                if (statement is FunctionCall sc && sc.FunctionName == "Spawn")
+                if (statement is FunctionDefinition)
                 {
-                    if (spawnCalled)
-                        throw new Exception($"'Spawn' solo puede llamarse una vez al inicio.");
-                    spawnCalled = true;
+                    pc++;
+                    continue; // No ejecutar definiciones de función aquí
                 }
+
+                if (statement is FunctionCallStatement funcStmt)
+{
+    if (!spawnCalled)
+    {
+        if (funcStmt.Call.FunctionName != "Spawn")
+            throw new Exception($"El código debe comenzar con 'Spawn'.");
+        spawnCalled = true;
+    }
+    else if (funcStmt.Call.FunctionName == "Spawn")
+    {
+        throw new Exception($"'Spawn' solo puede llamarse una vez al inicio.");
+    }
+}
 
                 if (statement is GoToStatement gotoStmt)
                 {
@@ -120,9 +140,10 @@ namespace Interfaz.Language
         {
             switch (statement)
             {
-                case FunctionCall funcCall:
-                    VisitFunctionCall(funcCall);
+                case FunctionCallStatement funcStmt:
+                    VisitFunctionCall(funcStmt.Call);
                     break;
+                    
                 case Assignment assignment:
                     VisitAssignment(assignment);
                     break;
@@ -135,59 +156,12 @@ namespace Interfaz.Language
                 case LoopStatement loopStmt:
                     VisitLoopStatement(loopStmt);
                     break;
+                case ReturnStatement retStmt:
+                    throw new ReturnException(VisitExpression(retStmt.Value));
                 default:
                     throw new NotImplementedException($"La sentencia de tipo '{statement.GetType().Name}' aún no está implementada en el intérprete. Línea: {statement.Line}, Columna: {statement.Column}");
             }
         }
-
-        private void VisitLoopStatement(LoopStatement loopStmt)
-        {
-            int from = Convert.ToInt32(VisitExpression(loopStmt.From));
-            int to = Convert.ToInt32(VisitExpression(loopStmt.To));
-            for (int i = from; i <= to; i++)
-            {
-                _environment.Set(loopStmt.Iterator, i);
-                foreach (var stmt in loopStmt.Body)
-                    VisitStatement(stmt);
-            }
-        }
-
-        private void VisitIfStatement(IfStatement ifStmt)
-        {
-            var cond = VisitExpression(ifStmt.Condition);
-            bool result = false;
-            if (cond is bool b)
-                result = b;
-            else if (cond is int i)
-                result = i != 0;
-            else
-                throw new Exception("La condición del IF debe ser booleana o entera.");
-
-            var block = result ? ifStmt.TrueBlock : ifStmt.FalseBlock;
-            foreach (var stmt in block)
-                VisitStatement(stmt);
-        }
-
-       private object VisitExpression(Interfaz.Language.AST.Expression expression)
-{
-    switch (expression)
-    {
-        case IntegerLiteral intLiteral:
-            return intLiteral.Value;
-        case StringLiteral stringLiteral:
-            return stringLiteral.Value;
-        case IdentifierExpression identifier:
-            return _environment.Get(identifier.Name);
-        case BinaryExpression binaryExpr:
-            return EvaluateBinaryExpression(binaryExpr);
-        case UnaryExpression unaryExpr:
-            return EvaluateUnaryExpression(unaryExpr); // <-- Agrega esta línea
-        case RandExpression randExpr:
-            return EvaluateRandExpression(randExpr);
-        default:
-            throw new NotImplementedException($"La expresión de tipo '{expression.GetType().Name}' aún no está implementada en el intérprete. Línea: {expression.Line}, Columna: {expression.Column}");
-    }
-}
 
         private void VisitFunctionCall(FunctionCall funcCall)
         {
@@ -234,12 +208,56 @@ namespace Interfaz.Language
                     MoveForward(-distanceB);
                     break;
                 case "Call":
-                    throw new NotImplementedException($"La función 'Call' aún no está implementada. Línea: {funcCall.Line}, Columna: {funcCall.Column}");
+                    if (evaluatedArgs.Count < 1)
+                        throw new Exception($"CALL espera al menos el nombre de la función.");
+                    string funcName = evaluatedArgs[0] as string;
+                    var callArgs = evaluatedArgs.Skip(1).ToList();
+                    CallUserFunction(funcName, callArgs);
+                    break;
                 case "Rand":
                     throw new Exception($"Error semántico en Línea {funcCall.Line}, Columna {funcCall.Column}: 'Rand' es una expresión y no puede ser una instrucción independiente. Úsala con 'Set'.");
                 default:
-                    throw new Exception($"Error semántico en Línea {funcCall.Line}, Columna {funcCall.Column}: Función '{funcCall.FunctionName}' no reconocida.");
+                    // Llamada a función de usuario como instrucción (sin asignar el resultado)
+                    if (_functions.ContainsKey(funcCall.FunctionName))
+                        CallUserFunction(funcCall.FunctionName, evaluatedArgs);
+                    else
+                        throw new Exception($"Error semántico en Línea {funcCall.Line}, Columna {funcCall.Column}: Función '{funcCall.FunctionName}' no reconocida.");
+                    break;
             }
+        }
+
+        private object CallUserFunction(string name, List<object> args)
+        {
+            if (!_functions.TryGetValue(name, out var funcDef))
+                throw new Exception($"Función '{name}' no definida.");
+
+            var prevEnv = _environment;
+            _environment = new Environment(prevEnv);
+
+            for (int i = 0; i < funcDef.Parameters.Count; i++)
+                _environment.Set(funcDef.Parameters[i], args[i]);
+
+            object returnValue = null;
+            try
+            {
+                foreach (var stmt in funcDef.Body)
+                {
+                    try
+                    {
+                        VisitStatement(stmt);
+                    }
+                    catch (ReturnException rex)
+                    {
+                        returnValue = rex.Value;
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                _environment = prevEnv;
+            }
+            return returnValue;
         }
 
         private void VisitAssignment(Assignment assignment)
@@ -254,72 +272,155 @@ namespace Interfaz.Language
             OnOutputMessage?.Invoke(valueToPrint?.ToString() ?? string.Empty);
         }
 
+        private void VisitIfStatement(IfStatement ifStmt)
+        {
+            var cond = VisitExpression(ifStmt.Condition);
+            bool result = false;
+            if (cond is bool b)
+                result = b;
+            else if (cond is int i)
+                result = i != 0;
+            else
+                throw new Exception("La condición del IF debe ser booleana o entera.");
+
+            var block = result ? ifStmt.TrueBlock : ifStmt.FalseBlock;
+            foreach (var stmt in block)
+                VisitStatement(stmt);
+        }
+
+        private void VisitLoopStatement(LoopStatement loopStmt)
+        {
+            int from = Convert.ToInt32(VisitExpression(loopStmt.From));
+            int to = Convert.ToInt32(VisitExpression(loopStmt.To));
+            for (int i = from; i <= to; i++)
+            {
+                _environment.Set(loopStmt.Iterator, i);
+                foreach (var stmt in loopStmt.Body)
+                    VisitStatement(stmt);
+            }
+        }
+
+        private object VisitExpression(Interfaz.Language.AST.Expression expression)
+        {
+            switch (expression)
+            {
+                case IntegerLiteral intLiteral:
+                    return intLiteral.Value;
+                case StringLiteral stringLiteral:
+                    return stringLiteral.Value;
+                case IdentifierExpression identifier:
+                    return _environment.Get(identifier.Name);
+                case BinaryExpression binaryExpr:
+                    return EvaluateBinaryExpression(binaryExpr);
+                case UnaryExpression unaryExpr:
+                    return EvaluateUnaryExpression(unaryExpr);
+                case RandExpression randExpr:
+                    return EvaluateRandExpression(randExpr);
+                case FunctionCall funcCallExpr:
+                    // Permite usar Call("nombre", ...) como expresión
+                    if (funcCallExpr.FunctionName == "Call")
+                    {
+                        if (funcCallExpr.Arguments.Count < 1)
+                            throw new Exception("CALL espera al menos el nombre de la función.");
+                        string funcName = (string)VisitExpression(funcCallExpr.Arguments[0]);
+                        var callArgs = funcCallExpr.Arguments.Skip(1).Select(VisitExpression).ToList();
+                        return CallUserFunction(funcName, callArgs);
+                    }
+                    else if (_functions.ContainsKey(funcCallExpr.FunctionName))
+                    {
+                        var callArgs = funcCallExpr.Arguments.Select(VisitExpression).ToList();
+                        return CallUserFunction(funcCallExpr.FunctionName, callArgs);
+                    }
+                    else
+                    {
+                        throw new Exception($"Función '{funcCallExpr.FunctionName}' no reconocida como expresión.");
+                    }
+                default:
+                    throw new NotImplementedException($"La expresión de tipo '{expression.GetType().Name}' aún no está implementada en el intérprete. Línea: {expression.Line}, Columna: {expression.Column}");
+            }
+        }
+
         private object EvaluateBinaryExpression(BinaryExpression expr)
-{
-    object left = VisitExpression(expr.Left);
-    object right = VisitExpression(expr.Right);
+        {
+            object left = VisitExpression(expr.Left);
+            object right = VisitExpression(expr.Right);
 
-    // Operadores aritméticos y de comparación para enteros
-    if (left is int lInt && right is int rInt)
-    {
-        switch (expr.Operator)
-        {
-            case TokenType.PLUS: return lInt + rInt;
-            case TokenType.MINUS: return lInt - rInt;
-            case TokenType.MULTIPLY: return lInt * rInt;
-            case TokenType.DIVIDE:
-                if (rInt == 0)
-                    throw new Exception($"Error en tiempo de ejecución en Línea {expr.Line}, Columna {expr.Column}: División por cero.");
-                return lInt / rInt;
-            case TokenType.MODULO:
-                if (rInt == 0)
-                    throw new Exception($"Error en tiempo de ejecución en Línea {expr.Line}, Columna {expr.Column}: División por cero.");
-                return lInt % rInt;
-            case TokenType.EQUALS: return lInt == rInt;
-            case TokenType.NOT_EQUALS: return lInt != rInt;
-            case TokenType.LESS: return lInt < rInt;
-            case TokenType.LESS_EQUALS: return lInt <= rInt;
-            case TokenType.GREATER: return lInt > rInt;
-            case TokenType.GREATER_EQUALS: return lInt >= rInt;
-        }
-    }
-    // Operadores lógicos para booleanos
-    else if (left is bool lBool && right is bool rBool)
-    {
-        switch (expr.Operator)
-        {
-            case TokenType.AND: return lBool && rBool;
-            case TokenType.OR: return lBool || rBool;
-            case TokenType.EQUALS: return lBool == rBool;
-            case TokenType.NOT_EQUALS: return lBool != rBool;
-            default:
-                throw new Exception($"Error de operación binaria en Línea {expr.Line}, Columna {expr.Column}: Operador '{expr.Operator}' no soportado para booleanos.");
-        }
-    }
-    // Operadores para cadenas
-    else if (left is string lStr && right is string rStr)
-    {
-        switch (expr.Operator)
-        {
-            case TokenType.EQUALS: return lStr == rStr;
-            case TokenType.NOT_EQUALS: return lStr != rStr;
-            default:
-                throw new Exception($"Error de operación binaria en Línea {expr.Line}, Columna {expr.Column}: Operador '{expr.Operator}' no soportado para cadenas.");
-        }
-    }
-    // Operadores lógicos para cualquier tipo (int, bool, etc.)
-    else
-    {
-        switch (expr.Operator)
-        {
-            case TokenType.AND: return ToBool(left) && ToBool(right);
-            case TokenType.OR: return ToBool(left) || ToBool(right);
-        }
-        throw new Exception($"Error de tipo en Línea {expr.Line}, Columna {expr.Column}: Tipos incompatibles para la operación binaria '{expr.Operator}' (izquierda: {left?.GetType().Name}, derecha: {right?.GetType().Name}). Se esperaban enteros, booleanos o cadenas compatibles.");
-    }
+            if (left is int lInt && right is int rInt)
+            {
+                switch (expr.Operator)
+                {
+                    case TokenType.PLUS: return lInt + rInt;
+                    case TokenType.MINUS: return lInt - rInt;
+                    case TokenType.MULTIPLY: return lInt * rInt;
+                    case TokenType.DIVIDE:
+                        if (rInt == 0)
+                            throw new Exception($"Error en tiempo de ejecución en Línea {expr.Line}, Columna {expr.Column}: División por cero.");
+                        return lInt / rInt;
+                    case TokenType.MODULO:
+                        if (rInt == 0)
+                            throw new Exception($"Error en tiempo de ejecución en Línea {expr.Line}, Columna {expr.Column}: División por cero.");
+                        return lInt % rInt;
+                    case TokenType.EQUALS: return lInt == rInt;
+                    case TokenType.NOT_EQUALS: return lInt != rInt;
+                    case TokenType.LESS: return lInt < rInt;
+                    case TokenType.LESS_EQUALS: return lInt <= rInt;
+                    case TokenType.GREATER: return lInt > rInt;
+                    case TokenType.GREATER_EQUALS: return lInt >= rInt;
+                }
+            }
+            else if (left is bool lBool && right is bool rBool)
+            {
+                switch (expr.Operator)
+                {
+                    case TokenType.AND: return lBool && rBool;
+                    case TokenType.OR: return lBool || rBool;
+                    case TokenType.EQUALS: return lBool == rBool;
+                    case TokenType.NOT_EQUALS: return lBool != rBool;
+                    default:
+                        throw new Exception($"Error de operación binaria en Línea {expr.Line}, Columna {expr.Column}: Operador '{expr.Operator}' no soportado para booleanos.");
+                }
+            }
+            else if (left is string lStr && right is string rStr)
+            {
+                switch (expr.Operator)
+                {
+                    case TokenType.EQUALS: return lStr == rStr;
+                    case TokenType.NOT_EQUALS: return lStr != rStr;
+                    default:
+                        throw new Exception($"Error de operación binaria en Línea {expr.Line}, Columna {expr.Column}: Operador '{expr.Operator}' no soportado para cadenas.");
+                }
+            }
+            else
+            {
+                switch (expr.Operator)
+                {
+                    case TokenType.AND: return ToBool(left) && ToBool(right);
+                    case TokenType.OR: return ToBool(left) || ToBool(right);
+                }
+                throw new Exception($"Error de tipo en Línea {expr.Line}, Columna {expr.Column}: Tipos incompatibles para la operación binaria '{expr.Operator}' (izquierda: {left?.GetType().Name}, derecha: {right?.GetType().Name}). Se esperaban enteros, booleanos o cadenas compatibles.");
+            }
 
-    throw new Exception($"Error de operación binaria en Línea {expr.Line}, Columna {expr.Column}: Operador '{expr.Operator}' no soportado.");
-}
+            throw new Exception($"Error de operación binaria en Línea {expr.Line}, Columna {expr.Column}: Operador '{expr.Operator}' no soportado.");
+        }
+
+        private object EvaluateUnaryExpression(UnaryExpression expr)
+        {
+            var operand = VisitExpression(expr.Operand);
+            switch (expr.Operator)
+            {
+                case TokenType.NOT:
+                    return !ToBool(operand);
+                default:
+                    throw new Exception($"Operador unario '{expr.Operator}' no soportado.");
+            }
+        }
+
+        private bool ToBool(object value)
+        {
+            if (value is bool b) return b;
+            if (value is int i) return i != 0;
+            return value != null;
+        }
 
         private object EvaluateRandExpression(RandExpression expr)
         {
@@ -422,23 +523,12 @@ namespace Interfaz.Language
             DrawLineOnBitmap(start, end, 1);
             _currentPosition = end;
         }
-        private object EvaluateUnaryExpression(UnaryExpression expr)
-        {
-            var operand = VisitExpression(expr.Operand);
-            switch (expr.Operator)
-            {
-                case TokenType.NOT:
-                    return !ToBool(operand);
-                default:
-                throw new Exception($"Operador unario '{expr.Operator}' no soportado.");
-            }
-        }
 
-        private bool ToBool(object value)
+        // Excepción interna para manejar return
+        private class ReturnException : Exception
         {
-            if (value is bool b) return b;
-            if (value is int i) return i != 0;
-            return value != null;
+            public object Value { get; }
+            public ReturnException(object value) { Value = value; }
         }
     }
 }

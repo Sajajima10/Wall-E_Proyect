@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Interfaz.Language.AST;
 
 namespace Interfaz.Language
@@ -69,6 +70,10 @@ namespace Interfaz.Language
 
             switch (current.Type)
             {
+                case TokenType.FUNC:
+                    return ParseFunctionDefinition();
+                case TokenType.RETURN:
+                    return ParseReturnStatement();
                 case TokenType.SPAWN:
                 case TokenType.COLOR:
                 case TokenType.DRAWLINE:
@@ -121,6 +126,48 @@ namespace Interfaz.Language
             }
 
             return statement;
+        }
+
+        private FunctionDefinition ParseFunctionDefinition()
+        {
+            Token funcToken = Eat(TokenType.FUNC);
+            Token nameToken = Eat(TokenType.IDENTIFIER);
+            Eat(TokenType.LEFT_PAREN);
+
+            var parameters = new List<string>();
+            if (CurrentToken.Type != TokenType.RIGHT_PAREN)
+            {
+                parameters.Add(Eat(TokenType.IDENTIFIER).Value);
+                while (CurrentToken.Type == TokenType.COMMA)
+                {
+                    Eat(TokenType.COMMA);
+                    parameters.Add(Eat(TokenType.IDENTIFIER).Value);
+                }
+            }
+            Eat(TokenType.RIGHT_PAREN);
+
+            while (CurrentToken.Type == TokenType.NEWLINE)
+                Advance();
+
+            var body = new List<Statement>();
+            while (CurrentToken.Type != TokenType.ENDFUNC && CurrentToken.Type != TokenType.EOF)
+            {
+                while (CurrentToken.Type == TokenType.NEWLINE)
+                    Advance();
+                if (CurrentToken.Type == TokenType.ENDFUNC || CurrentToken.Type == TokenType.EOF)
+                    break;
+                body.Add(ParseStatement());
+            }
+            Eat(TokenType.ENDFUNC);
+
+            return new FunctionDefinition(nameToken.Value, parameters, body, funcToken.Line, funcToken.Column);
+        }
+
+        private ReturnStatement ParseReturnStatement()
+        {
+            Token returnToken = Eat(TokenType.RETURN);
+            Expression value = ParseExpression();
+            return new ReturnStatement(value, returnToken.Line, returnToken.Column);
         }
 
         private IfStatement ParseIfStatement()
@@ -255,8 +302,7 @@ namespace Interfaz.Language
                 return new PrintStatement(arguments[0], line, column);
             }
 
-            return new FunctionCall(functionName, arguments, line, column);
-        }
+            return new FunctionCallStatement(new FunctionCall(functionName, arguments, line, column), line, column);}
 
         private Assignment ParseLeftAssignStatement()
         {
