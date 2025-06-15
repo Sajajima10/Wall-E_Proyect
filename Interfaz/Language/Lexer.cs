@@ -237,6 +237,8 @@ namespace Interfaz.Language
                 case "SPAWN": return new Token(TokenType.SPAWN, ident, line, column);
                 case "COLOR": return new Token(TokenType.COLOR, ident, line, column);
                 case "DRAWLINE": return new Token(TokenType.DRAWLINE, ident, line, column);
+                case "DRAWCIRCLE": return new Token(TokenType.DRAWCIRCLE, ident, line, column);
+                case "DRAWRECTANGLE": return new Token(TokenType.DRAWRECTANGLE, ident, line, column);
                 case "MOVE": return new Token(TokenType.MOVE, ident, line, column);
                 case "TURN": return new Token(TokenType.TURN, ident, line, column);
                 case "FORWARD": return new Token(TokenType.FORWARD, ident, line, column);
@@ -258,6 +260,10 @@ namespace Interfaz.Language
                 case "OR": return new Token(TokenType.OR, ident, line, column);
                 case "NOT": return new Token(TokenType.NOT, ident, line, column);
                 case "GOTO": return new Token(TokenType.GOTO, ident, line, column);
+                case "SIZE": return new Token(TokenType.SIZE, ident, line, column);
+                case "FILL": return new Token(TokenType.FILL, ident, line, column);  
+                case"GETACTUALX": return new Token(TokenType.GETACTUALX, ident, line, column);
+                case"GETACTUALY": return new Token(TokenType.GETACTUALY, ident, line, column);
                 default: return new Token(TokenType.IDENTIFIER, ident, line, column);
             }
         }

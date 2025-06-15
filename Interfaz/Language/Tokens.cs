@@ -8,6 +8,8 @@ namespace Interfaz.Language
         SPAWN,
         COLOR,
         DRAWLINE,
+        DRAWCIRCLE,
+        DRAWRECTANGLE,
         MOVE,
         TURN,
         FORWARD,
@@ -27,6 +29,8 @@ namespace Interfaz.Language
         RAND,
         GOTO,
         LABEL,
+        SIZE,
+        FILL,
 
         // Operadores
         PLUS,         // +
@@ -61,7 +65,11 @@ namespace Interfaz.Language
         IDENTIFIER,     // Nombres de variables, funciones, etiquetas
         NEWLINE,        // Salto de línea (importante como separador de instrucciones)
         EOF,            // End Of File (Fin de la entrada)
-        UNKNOWN         // Para caracteres o secuencias no reconocidas (útil para errores)
+        UNKNOWN,
+
+        // Sistema
+        GETACTUALX,
+        GETACTUALY,
     }
 
     public class Token

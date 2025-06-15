@@ -16,6 +16,7 @@ namespace Interfaz.Language
 
         private Point _currentPosition;
         private Color _currentColor;
+        private int _currentThickness = 1;
         private double _currentRotation;
 
         public event Action<string> OnOutputMessage;
@@ -88,18 +89,18 @@ namespace Interfaz.Language
                 }
 
                 if (statement is FunctionCallStatement funcStmt)
-{
-    if (!spawnCalled)
-    {
-        if (funcStmt.Call.FunctionName != "Spawn")
-            throw new Exception($"El código debe comenzar con 'Spawn'.");
-        spawnCalled = true;
-    }
-    else if (funcStmt.Call.FunctionName == "Spawn")
-    {
-        throw new Exception($"'Spawn' solo puede llamarse una vez al inicio.");
-    }
-}
+                {
+                    if (!spawnCalled)
+                    {
+                        if (funcStmt.Call.FunctionName != "Spawn")
+                            throw new Exception($"El código debe comenzar con 'Spawn'.");
+                        spawnCalled = true;
+                    }
+                    else if (funcStmt.Call.FunctionName == "Spawn")
+                    {
+                        throw new Exception($"'Spawn' solo puede llamarse una vez al inicio.");
+                    }
+                }
 
                 if (statement is GoToStatement gotoStmt)
                 {
@@ -143,7 +144,7 @@ namespace Interfaz.Language
                 case FunctionCallStatement funcStmt:
                     VisitFunctionCall(funcStmt.Call);
                     break;
-                    
+
                 case Assignment assignment:
                     VisitAssignment(assignment);
                     break;
@@ -158,6 +159,9 @@ namespace Interfaz.Language
                     break;
                 case ReturnStatement retStmt:
                     throw new ReturnException(VisitExpression(retStmt.Value));
+                case DrawRectangleStatement drawRectStmt: // Added case for DrawRectangleStatement
+                    VisitDrawRectangleStatement(drawRectStmt);
+                    break;
                 default:
                     throw new NotImplementedException($"La sentencia de tipo '{statement.GetType().Name}' aún no está implementada en el intérprete. Línea: {statement.Line}, Columna: {statement.Column}");
             }
@@ -165,64 +169,50 @@ namespace Interfaz.Language
 
         private void VisitFunctionCall(FunctionCall funcCall)
         {
-            List<object> evaluatedArgs = new List<object>();
-            foreach (Interfaz.Language.AST.Expression arg in funcCall.Arguments)
-                evaluatedArgs.Add(VisitExpression(arg));
+            List<object> evaluatedArgs = funcCall.Arguments.Select(VisitExpression).ToList();
 
             switch (funcCall.FunctionName)
             {
                 case "Spawn":
                     if (evaluatedArgs.Count != 2 || !(evaluatedArgs[0] is int x) || !(evaluatedArgs[1] is int y))
-                        throw new Exception($"Error semántico en Línea {funcCall.Line}, Columna {funcCall.Column}: 'Spawn' espera dos argumentos enteros (x, y).");
+                        throw new Exception($"'Spawn' espera dos enteros (x, y).");
                     _currentPosition = new Point(x, y);
                     break;
+
                 case "Color":
                     if (evaluatedArgs.Count != 1 || !(evaluatedArgs[0] is string colorName))
-                        throw new Exception($"Error semántico en Línea {funcCall.Line}, Columna {funcCall.Column}: 'Color' espera un argumento de cadena con el nombre del color.");
+                        throw new Exception($"'Color' espera un string con el nombre del color.");
                     _currentColor = ParseColor(colorName, funcCall.Line, funcCall.Column);
                     break;
+
                 case "DrawLine":
-                    if (evaluatedArgs.Count != 3 || !(evaluatedArgs[0] is int x2) || !(evaluatedArgs[1] is int y2) || !(evaluatedArgs[2] is int thickness))
-                        throw new Exception($"Error semántico en Línea {funcCall.Line}, Columna {funcCall.Column}: 'DrawLine' espera tres argumentos enteros (x2, y2, thickness).");
-                    DrawLineOnBitmap(_currentPosition, new Point(x2, y2), thickness);
-                    _currentPosition = new Point(x2, y2);
+                    if (evaluatedArgs.Count != 3 || !(evaluatedArgs[0] is int dirX) || !(evaluatedArgs[1] is int dirY) || !(evaluatedArgs[2] is int distance))
+                        throw new Exception($"'DrawLine' espera tres enteros (dirX, dirY, distance).");
+                    DrawLineDirectional(dirX, dirY, distance);
                     break;
-                case "Move":
-                    if (evaluatedArgs.Count != 2 || !(evaluatedArgs[0] is int dx) || !(evaluatedArgs[1] is int dy))
-                        throw new Exception($"Error semántico en Línea {funcCall.Line}, Columna {funcCall.Column}: 'Move' espera dos argumentos enteros (dx, dy).");
-                    _currentPosition = new Point(_currentPosition.X + dx, _currentPosition.Y + dy);
+
+                case "DrawCircle":
+                    if (evaluatedArgs.Count != 3 || !(evaluatedArgs[0] is int circleDirX) || !(evaluatedArgs[1] is int circleDirY) || !(evaluatedArgs[2] is int radius))
+                        throw new Exception($"'DrawCircle' espera tres enteros (dirX, dirY, radius).");
+                    DrawCircle(circleDirX, circleDirY, radius);
                     break;
-                case "Turn":
-                    if (evaluatedArgs.Count != 1 || !(evaluatedArgs[0] is int degrees))
-                        throw new Exception($"Error semántico en Línea {funcCall.Line}, Columna {funcCall.Column}: 'Turn' espera un argumento entero (grados).");
-                    _currentRotation = (_currentRotation + degrees) % 360;
+
+                case "Size":
+                    if (evaluatedArgs.Count != 1 || !(evaluatedArgs[0] is int size))
+                        throw new Exception($"'Size' espera un entero.");
+                    if (size <= 0)
+                        throw new Exception($"'Size' debe ser mayor que 0.");
+                    _currentThickness = size % 2 == 0 ? size - 1 : size;
                     break;
-                case "Forward":
-                    if (evaluatedArgs.Count != 1 || !(evaluatedArgs[0] is int distanceF))
-                        throw new Exception($"Error semántico en Línea {funcCall.Line}, Columna {funcCall.Column}: 'Forward' espera un argumento entero (distancia).");
-                    MoveForward(distanceF);
+
+                case "Fill":
+                    if (evaluatedArgs.Count != 0)
+                        throw new Exception("'Fill' no recibe argumentos.");
+                    FillArea();
                     break;
-                case "Backward":
-                    if (evaluatedArgs.Count != 1 || !(evaluatedArgs[0] is int distanceB))
-                        throw new Exception($"Error semántico en Línea {funcCall.Line}, Columna {funcCall.Column}: 'Backward' espera un argumento entero (distancia).");
-                    MoveForward(-distanceB);
-                    break;
-                case "Call":
-                    if (evaluatedArgs.Count < 1)
-                        throw new Exception($"CALL espera al menos el nombre de la función.");
-                    string funcName = evaluatedArgs[0] as string;
-                    var callArgs = evaluatedArgs.Skip(1).ToList();
-                    CallUserFunction(funcName, callArgs);
-                    break;
-                case "Rand":
-                    throw new Exception($"Error semántico en Línea {funcCall.Line}, Columna {funcCall.Column}: 'Rand' es una expresión y no puede ser una instrucción independiente. Úsala con 'Set'.");
+
                 default:
-                    // Llamada a función de usuario como instrucción (sin asignar el resultado)
-                    if (_functions.ContainsKey(funcCall.FunctionName))
-                        CallUserFunction(funcCall.FunctionName, evaluatedArgs);
-                    else
-                        throw new Exception($"Error semántico en Línea {funcCall.Line}, Columna {funcCall.Column}: Función '{funcCall.FunctionName}' no reconocida.");
-                    break;
+                    throw new Exception($"Función '{funcCall.FunctionName}' no reconocida o no implementada.");
             }
         }
 
@@ -300,45 +290,69 @@ namespace Interfaz.Language
             }
         }
 
-        private object VisitExpression(Interfaz.Language.AST.Expression expression)
-        {
-            switch (expression)
+       private object VisitExpression(Interfaz.Language.AST.Expression expression)
+{
+    switch (expression)
+    {
+        case IntegerLiteral intLiteral:
+            return intLiteral.Value;
+
+        case StringLiteral stringLiteral:
+            return stringLiteral.Value;
+
+        case IdentifierExpression identifier:
+            return _environment.Get(identifier.Name);
+
+        case BinaryExpression binaryExpr:
+            return EvaluateBinaryExpression(binaryExpr);
+
+        case UnaryExpression unaryExpr:
+            return EvaluateUnaryExpression(unaryExpr);
+
+        case RandExpression randExpr:
+            return EvaluateRandExpression(randExpr);
+
+        case FunctionCall funcCallExpr:
+            // ---------- INICIO DE LA SECCIÓN MODIFICADA ----------
+
+            // Primero, revisamos si es una de las nuevas funciones del sistema.
+            if (funcCallExpr.FunctionName == "GetActualX")
             {
-                case IntegerLiteral intLiteral:
-                    return intLiteral.Value;
-                case StringLiteral stringLiteral:
-                    return stringLiteral.Value;
-                case IdentifierExpression identifier:
-                    return _environment.Get(identifier.Name);
-                case BinaryExpression binaryExpr:
-                    return EvaluateBinaryExpression(binaryExpr);
-                case UnaryExpression unaryExpr:
-                    return EvaluateUnaryExpression(unaryExpr);
-                case RandExpression randExpr:
-                    return EvaluateRandExpression(randExpr);
-                case FunctionCall funcCallExpr:
-                    // Permite usar Call("nombre", ...) como expresión
-                    if (funcCallExpr.FunctionName == "Call")
-                    {
-                        if (funcCallExpr.Arguments.Count < 1)
-                            throw new Exception("CALL espera al menos el nombre de la función.");
-                        string funcName = (string)VisitExpression(funcCallExpr.Arguments[0]);
-                        var callArgs = funcCallExpr.Arguments.Skip(1).Select(VisitExpression).ToList();
-                        return CallUserFunction(funcName, callArgs);
-                    }
-                    else if (_functions.ContainsKey(funcCallExpr.FunctionName))
-                    {
-                        var callArgs = funcCallExpr.Arguments.Select(VisitExpression).ToList();
-                        return CallUserFunction(funcCallExpr.FunctionName, callArgs);
-                    }
-                    else
-                    {
-                        throw new Exception($"Función '{funcCallExpr.FunctionName}' no reconocida como expresión.");
-                    }
-                default:
-                    throw new NotImplementedException($"La expresión de tipo '{expression.GetType().Name}' aún no está implementada en el intérprete. Línea: {expression.Line}, Columna: {expression.Column}");
+                if (funcCallExpr.Arguments.Any())
+                    throw new Exception($"Error en Línea {funcCallExpr.Line}, Columna {funcCallExpr.Column}: La función GetActualX no recibe argumentos.");
+                return (int)_currentPosition.X;
             }
-        }
+            else if (funcCallExpr.FunctionName == "GetActualY")
+            {
+                if (funcCallExpr.Arguments.Any())
+                    throw new Exception($"Error en Línea {funcCallExpr.Line}, Columna {funcCallExpr.Column}: La función GetActualY no recibe argumentos.");
+                return (int)_currentPosition.Y;
+            }
+            // Si no, continuamos con la lógica que ya tenías para funciones de usuario.
+            else if (funcCallExpr.FunctionName == "Call")
+            {
+                if (funcCallExpr.Arguments.Count < 1)
+                    throw new Exception("CALL espera al menos el nombre de la función.");
+                string funcName = (string)VisitExpression(funcCallExpr.Arguments[0]);
+                var callArgs = funcCallExpr.Arguments.Skip(1).Select(VisitExpression).ToList();
+                return CallUserFunction(funcName, callArgs);
+            }
+            else if (_functions.ContainsKey(funcCallExpr.FunctionName))
+            {
+                var callArgs = funcCallExpr.Arguments.Select(VisitExpression).ToList();
+                return CallUserFunction(funcCallExpr.FunctionName, callArgs);
+            }
+            else
+            {
+                // Si llega hasta aquí, la función no se reconoce.
+                throw new Exception($"Función '{funcCallExpr.FunctionName}' no reconocida como expresión. Línea: {funcCallExpr.Line}, Columna: {funcCallExpr.Column}");
+            }
+            // ---------- FIN DE LA SECCIÓN MODIFICADA ----------
+
+        default:
+            throw new NotImplementedException($"La expresión de tipo '{expression.GetType().Name}' aún no está implementada en el intérprete. Línea: {expression.Line}, Columna: {expression.Column}");
+    }
+}
 
         private object EvaluateBinaryExpression(BinaryExpression expr)
         {
@@ -410,6 +424,14 @@ namespace Interfaz.Language
             {
                 case TokenType.NOT:
                     return !ToBool(operand);
+                case TokenType.MINUS:
+                    if (operand is int i)
+                        return -i;
+                    throw new Exception("Operador unario '-' solo se puede aplicar a enteros.");
+                case TokenType.PLUS:
+                    if (operand is int j)
+                        return +j;
+                    throw new Exception("Operador unario '+' solo se puede aplicar a enteros.");
                 default:
                     throw new Exception($"Operador unario '{expr.Operator}' no soportado.");
             }
@@ -524,11 +546,202 @@ namespace Interfaz.Language
             _currentPosition = end;
         }
 
+
+        private void DrawLineDirectional(int dirX, int dirY, int distance)
+        {
+            if (!(new[] { -1, 0, 1 }.Contains(dirX)) || !(new[] { -1, 0, 1 }.Contains(dirY)) || (dirX == 0 && dirY == 0))
+                throw new Exception("Los valores dirX y dirY deben ser -1, 0 o 1, y no ambos 0.");
+
+            Point start = _currentPosition;
+            double endX = _currentPosition.X + dirX * distance;
+            double endY = _currentPosition.Y + dirY * distance;
+            Point end = new Point(endX, endY);
+
+            DrawLineOnBitmap(start, end, _currentThickness); // Usa grosor actual
+            _currentPosition = end;
+        }
+
+        private void DrawCircle(int dirX, int dirY, int radius)
+        {
+            if (!(new[] { -1, 0, 1 }.Contains(dirX)) || !(new[] { -1, 0, 1 }.Contains(dirY)) || (dirX == 0 && dirY == 0))
+                throw new Exception("Los valores dirX y dirY deben ser -1, 0 o 1, y no ambos 0.");
+
+            double centerX = _currentPosition.X + dirX * radius;
+            double centerY = _currentPosition.Y + dirY * radius;
+            Point center = new Point(centerX, centerY);
+
+            int steps = 360;
+            double angleStep = 2 * Math.PI / steps;
+            Point? prev = null;
+            for (int i = 0; i <= steps; i++)
+            {
+                double angle = i * angleStep;
+                double x = centerX + radius * Math.Cos(angle);
+                double y = centerY + radius * Math.Sin(angle);
+                Point current = new Point(x, y);
+                if (prev != null)
+                    DrawLineOnBitmap(prev.Value, current, _currentThickness);
+                prev = current;
+            }
+
+            _currentPosition = center; // La nueva posición es el centro del círculo
+        }
         // Excepción interna para manejar return
         private class ReturnException : Exception
         {
             public object Value { get; }
             public ReturnException(object value) { Value = value; }
         }
+
+        public object VisitDrawRectangleStatement(DrawRectangleStatement node)
+        {
+            int dx = Convert.ToInt32(VisitExpression(node.Dx));
+            int dy = Convert.ToInt32(VisitExpression(node.Dy));
+            int width = Convert.ToInt32(VisitExpression(node.Width));
+            int height = Convert.ToInt32(VisitExpression(node.Height));
+
+            DrawRectangle(dx, dy, width, height);
+            return null;
+        }
+        private void DrawRectangle(int dx, int dy, int width, int height)
+        {
+            // Calcula la esquina superior izquierda real basada en la posición actual
+            double startX = _currentPosition.X + dx;
+            double startY = _currentPosition.Y + dy;
+
+            // Asegura que las coordenadas estén dentro de los límites del bitmap (opcional pero recomendado)
+            startX = Math.Max(0, Math.Min(_bitmap.PixelWidth - 1, startX));
+            startY = Math.Max(0, Math.Min(_bitmap.PixelHeight - 1, startY));
+
+            double endX = startX + width;
+            double endY = startY + height;
+
+            endX = Math.Max(0, Math.Min(_bitmap.PixelWidth - 1, endX));
+            endY = Math.Max(0, Math.Min(_bitmap.PixelHeight - 1, endY));
+
+            // Dibuja las cuatro líneas del rectángulo
+            // Línea superior
+            DrawLineOnBitmap(new Point(startX, startY), new Point(endX, startY), _currentThickness);
+            // Línea derecha
+            DrawLineOnBitmap(new Point(endX, startY), new Point(endX, endY), _currentThickness);
+            // Línea inferior
+            DrawLineOnBitmap(new Point(endX, endY), new Point(startX, endY), _currentThickness);
+            // Línea izquierda
+            DrawLineOnBitmap(new Point(startX, endY), new Point(startX, startY), _currentThickness);
+        }
+
+        private void FillArea()
+        {
+            int width = _bitmap.PixelWidth;
+            int height = _bitmap.PixelHeight;
+            int startX = (int)_currentPosition.X;
+            int startY = (int)_currentPosition.Y;
+
+            Color targetColor = GetPixelColor(startX, startY);
+            if (AreColorsEqual(targetColor, _currentColor)) return;
+
+            Queue<Point> queue = new Queue<Point>();
+            HashSet<(int, int)> visited = new();
+            queue.Enqueue(new Point(startX, startY));
+            visited.Add((startX, startY));
+
+            while (queue.Count > 0)
+            {
+                Point p = queue.Dequeue();
+                int x = (int)p.X;
+                int y = (int)p.Y;
+
+                Color current = GetPixelColor(x, y);
+                if (AreColorsEqual(current, targetColor))
+                {
+                    DrawPixelOnBitmap(x, y, _currentColor);
+
+                    foreach ((int dx, int dy) in new[] { (0, 1), (1, 0), (0, -1), (-1, 0) })
+                    {
+                        int nx = x + dx;
+                        int ny = y + dy;
+                        if (nx >= 0 && ny >= 0 && nx < width && ny < height && !visited.Contains((nx, ny)))
+                        {
+                            queue.Enqueue(new Point(nx, ny));
+                            visited.Add((nx, ny));
+                        }
+                    }
+                }
+            }
+        }
+
+        private Color GetPixelColor(int x, int y)
+        {
+            _bitmap.Lock();
+            unsafe
+            {
+                IntPtr pBackBuffer = _bitmap.BackBuffer;
+                int stride = _bitmap.BackBufferStride;
+                byte* buffer = (byte*)pBackBuffer;
+                int index = y * stride + x * 4;
+                byte b = buffer[index];
+                byte g = buffer[index + 1];
+                byte r = buffer[index + 2];
+                byte a = buffer[index + 3];
+                _bitmap.Unlock();
+                return Color.FromArgb(a, r, g, b);
+            }
+        }
+
+        private bool AreColorsEqual(Color c1, Color c2)
+        {
+            return c1.A == c2.A && c1.R == c2.R && c1.G == c2.G && c1.B == c2.B;
+        }
+
+        private void DrawPixelOnBitmap(int x, int y, Color color)
+        {
+            if (x < 0 || y < 0 || x >= _bitmap.PixelWidth || y >= _bitmap.PixelHeight)
+                return;
+
+            _bitmap.Lock();
+            unsafe
+            {
+                IntPtr pBackBuffer = _bitmap.BackBuffer;
+                int stride = _bitmap.BackBufferStride;
+                byte* buffer = (byte*)pBackBuffer;
+                int index = y * stride + x * 4;
+
+                buffer[index] = color.B;
+                buffer[index + 1] = color.G;
+                buffer[index + 2] = color.R;
+                buffer[index + 3] = color.A;
+            }
+            _bitmap.AddDirtyRect(new Int32Rect(x, y, 1, 1));
+            _bitmap.Unlock();
+        }
+        private object EvaluateFunctionExpression(FunctionCall call)
+        {
+            var args = call.Arguments.Select(VisitExpression).ToList();
+
+            switch (call.FunctionName)
+            {
+                case "Rand":
+                    if (args.Count != 2 || !(args[0] is int min) || !(args[1] is int max))
+                        throw new Exception("Rand espera dos argumentos enteros.");
+                    return _random.Next(min, max + 1);
+
+                case "GetActualX":
+                    if (args.Count != 0)
+                        throw new Exception("GetActualX no recibe argumentos.");
+                    return (int)_currentPosition.X;
+
+                case "GetActualY":
+                    if (args.Count != 0)
+                        throw new Exception("GetActualY no recibe argumentos.");
+                    return (int)_currentPosition.Y;
+
+                default:
+                    if (_functions.ContainsKey(call.FunctionName))
+                        return CallUserFunction(call.FunctionName, args);
+                    throw new Exception($"Función '{call.FunctionName}' no reconocida.");
+            }
+        }
+
+
     }
 }

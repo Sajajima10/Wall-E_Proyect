@@ -124,13 +124,30 @@ namespace Interfaz.Language.AST
         }
     }
     public class FunctionCallStatement : Statement
-{
-    public FunctionCall Call { get; }
-
-    public FunctionCallStatement(FunctionCall call, int line, int column)
-        : base(line, column)
     {
-        Call = call;
+        public FunctionCall Call { get; }
+
+        public FunctionCallStatement(FunctionCall call, int line, int column)
+            : base(line, column)
+        {
+            Call = call;
+        }
     }
-}
+
+    public class DrawRectangleStatement : Statement
+    {
+        public Expression Dx { get; }
+        public Expression Dy { get; }
+        public Expression Width { get; }
+        public Expression Height { get; }
+
+        public DrawRectangleStatement(Expression dx, Expression dy, Expression width, Expression height, int line, int column)
+            : base(line, column)
+        {
+            Dx = dx;
+            Dy = dy;
+            Width = width;
+            Height = height;
+        }
+    }
 }

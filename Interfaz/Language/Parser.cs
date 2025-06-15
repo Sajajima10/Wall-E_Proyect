@@ -67,6 +67,8 @@ namespace Interfaz.Language
         {
             Statement statement = null;
             Token current = CurrentToken;
+            int line = CurrentToken.Line;   
+            int column = CurrentToken.Column;
 
             switch (current.Type)
             {
@@ -77,6 +79,27 @@ namespace Interfaz.Language
                 case TokenType.SPAWN:
                 case TokenType.COLOR:
                 case TokenType.DRAWLINE:
+                case TokenType.DRAWCIRCLE:
+                    statement = ParseFunctionLikeStatement();
+                    break;
+                case TokenType.DRAWRECTANGLE:
+                    Token drawRectangleToken = Eat(TokenType.DRAWRECTANGLE); // Consume el token DRAWRECTANGLE
+                    Eat(TokenType.LEFT_PAREN); // Consume (
+
+                    Expression dxExpr = ParseExpression();
+                    Eat(TokenType.COMMA); // Consume la primera coma
+                    Expression dyExpr = ParseExpression();
+                    Eat(TokenType.COMMA); // Consume la segunda coma
+                    Expression widthExpr = ParseExpression();
+                    Eat(TokenType.COMMA); // Consume la tercera coma
+                    Expression heightExpr = ParseExpression();
+
+                    Eat(TokenType.RIGHT_PAREN); // Consume )
+
+                return new DrawRectangleStatement(dxExpr, dyExpr, widthExpr, heightExpr, drawRectangleToken.Line, drawRectangleToken.Column);
+                case TokenType.SIZE:
+                    statement = ParseFunctionLikeStatement();
+                    break;
                 case TokenType.MOVE:
                 case TokenType.TURN:
                 case TokenType.FORWARD:
@@ -89,6 +112,7 @@ namespace Interfaz.Language
                     return ParseLoopStatement();
                 case TokenType.CALL:
                 case TokenType.PRINT:
+                case TokenType.FILL:
                 case TokenType.RAND:
                     statement = ParseFunctionLikeStatement();
                     break;
@@ -405,15 +429,17 @@ namespace Interfaz.Language
         }
 
         private Expression ParseUnary()
-        {
-            if (CurrentToken.Type == TokenType.NOT)
-            {
-                Token op = CurrentToken;
-                Advance();
-                return new UnaryExpression(op.Type, ParseUnary(), op.Line, op.Column);
-            }
-            return ParsePrimary();
-        }
+{
+    if (CurrentToken.Type == TokenType.NOT || 
+        CurrentToken.Type == TokenType.MINUS || 
+        CurrentToken.Type == TokenType.PLUS)
+    {
+        Token op = CurrentToken;
+        Advance();
+        return new UnaryExpression(op.Type, ParseUnary(), op.Line, op.Column);
+    }
+    return ParsePrimary();
+}
 
         private Expression ParsePrimary()
         {
@@ -423,17 +449,42 @@ namespace Interfaz.Language
                 case TokenType.INTEGER_LITERAL:
                     Eat(TokenType.INTEGER_LITERAL);
                     return new IntegerLiteral(int.Parse(token.Value), token.Line, token.Column);
+
                 case TokenType.STRING_LITERAL:
                     Eat(TokenType.STRING_LITERAL);
                     return new StringLiteral(token.Value, token.Line, token.Column);
+
                 case TokenType.IDENTIFIER:
                     Eat(TokenType.IDENTIFIER);
+
+                    // Comprobar si es llamada a función: IDENTIFIER seguido de LEFT_PAREN
+                    if (CurrentToken.Type == TokenType.LEFT_PAREN)
+                    {
+                        Eat(TokenType.LEFT_PAREN);
+                        List<Expression> args = new();
+
+                        if (CurrentToken.Type != TokenType.RIGHT_PAREN)
+                        {
+                            args.Add(ParseExpression());
+                            while (CurrentToken.Type == TokenType.COMMA)
+                            {
+                                Eat(TokenType.COMMA);
+                                args.Add(ParseExpression());
+                            }
+                        }
+
+                        Eat(TokenType.RIGHT_PAREN);
+                        return new FunctionCall(token.Value, args, token.Line, token.Column);
+                    }
+
                     return new IdentifierExpression(token.Value, token.Line, token.Column);
+
                 case TokenType.LEFT_PAREN:
                     Eat(TokenType.LEFT_PAREN);
                     Expression expr = ParseExpression();
                     Eat(TokenType.RIGHT_PAREN);
                     return expr;
+
                 case TokenType.RAND:
                     Eat(TokenType.RAND);
                     Eat(TokenType.LEFT_PAREN);
@@ -442,9 +493,24 @@ namespace Interfaz.Language
                     Expression max = ParseExpression();
                     Eat(TokenType.RIGHT_PAREN);
                     return new RandExpression(min, max, token.Line, token.Column);
+                case TokenType.GETACTUALX:
+                    Token getActualXToken = Eat(TokenType.GETACTUALX);
+                    Eat(TokenType.LEFT_PAREN);
+                    Eat(TokenType.RIGHT_PAREN);
+                    // Pass the token's value (the function name) to the FunctionCall constructor
+                    return new FunctionCall(getActualXToken.Value, new List<Expression>(), getActualXToken.Line, getActualXToken.Column);
+
+                case TokenType.GETACTUALY:
+                    Token getActualYToken = Eat(TokenType.GETACTUALY);
+                    Eat(TokenType.LEFT_PAREN);
+                    Eat(TokenType.RIGHT_PAREN);
+                    // Pass the token's value (the function name) to the FunctionCall constructor
+                   return new FunctionCall(getActualYToken.Value, new List<Expression>(), getActualYToken.Line, getActualYToken.Column);
+
                 default:
                     throw new Exception($"Error de sintaxis en Línea {token.Line}, Columna {token.Column}: Token inesperado '{token.Value}' de tipo {token.Type}. Se esperaba un literal, identificador, o expresión.");
             }
         }
+
     }
 }
