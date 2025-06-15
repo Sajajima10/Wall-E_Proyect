@@ -48,6 +48,7 @@ namespace Interfaz.Language
         AND,          // &&
         OR,           // ||
         NOT,          // !
+        POWER,        // **
 
         // Delimitadores / Símbolos
         LEFT_PAREN,     // (
@@ -70,6 +71,11 @@ namespace Interfaz.Language
         // Sistema
         GETACTUALX,
         GETACTUALY,
+        GETCANVASSIZE,
+        GETCOLORCOUNT,
+        ISBRUSHCOLOR,
+        ISBRUSHSIZE,
+        ISCANVASCOLOR,
     }
 
     public class Token

@@ -110,8 +110,17 @@ namespace Interfaz.Language
                 }
                 if (c == '*')
                 {
-                    tokens.Add(new Token(TokenType.MULTIPLY, "*", startLine, startColumn));
-                    Advance();
+                    if (Peek() == '*') // Estamos verificando si el siguiente carácter también es '*'
+                    {
+                        Advance(); // Consume el primer '*' (ahora _position está en el segundo '*')
+                        Advance(); // Consume el segundo '*' (ahora _position está después del '**')
+                        tokens.Add(new Token(TokenType.POWER, "**", startLine, startColumn)); // ¡Crea UN solo token POWER!
+                    }
+                    else
+                    {
+                        tokens.Add(new Token(TokenType.MULTIPLY, "*", startLine, startColumn));
+                        Advance();
+                    }
                     continue;
                 }
                 if (c == '/')
@@ -264,6 +273,11 @@ namespace Interfaz.Language
                 case "FILL": return new Token(TokenType.FILL, ident, line, column);  
                 case"GETACTUALX": return new Token(TokenType.GETACTUALX, ident, line, column);
                 case"GETACTUALY": return new Token(TokenType.GETACTUALY, ident, line, column);
+                case"GETCANVASSIZE": return new Token(TokenType.GETCANVASSIZE, ident, line, column);
+                case "GETCOLORCOUNT": return new Token(TokenType.GETCOLORCOUNT, ident, line, column);
+                case"ISBRUSHCOLOR": return new Token(TokenType.ISBRUSHCOLOR, ident, line, column);
+                case "ISBRUSHSIZE": return new Token(TokenType.ISBRUSHSIZE, ident, line, column);
+                case "ISCANVASCOLOR": return new Token(TokenType.ISCANVASCOLOR, ident, line, column);
                 default: return new Token(TokenType.IDENTIFIER, ident, line, column);
             }
         }

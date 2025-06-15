@@ -259,7 +259,14 @@ namespace Interfaz.Language
         private void VisitPrintStatement(PrintStatement printStmt)
         {
             object valueToPrint = VisitExpression(printStmt.Expression);
-            OnOutputMessage?.Invoke(valueToPrint?.ToString() ?? string.Empty);
+            string output;
+
+            if (valueToPrint is IEnumerable<int> list)
+                output = "[" + string.Join(", ", list) + "]";
+            else
+                output = valueToPrint?.ToString() ?? string.Empty;
+
+            OnOutputMessage?.Invoke(output);
         }
 
         private void VisitIfStatement(IfStatement ifStmt)
@@ -313,41 +320,97 @@ namespace Interfaz.Language
             return EvaluateRandExpression(randExpr);
 
         case FunctionCall funcCallExpr:
-            // ---------- INICIO DE LA SECCIÓN MODIFICADA ----------
+    if (funcCallExpr.FunctionName == "GetActualX")
+    {
+        if (funcCallExpr.Arguments.Any())
+            throw new Exception($"Error en Línea {funcCallExpr.Line}, Columna {funcCallExpr.Column}: La función GetActualX no recibe argumentos.");
+        return (int)_currentPosition.X;
+    }
+    else if (funcCallExpr.FunctionName == "GetActualY")
+    {
+        if (funcCallExpr.Arguments.Any())
+            throw new Exception($"Error en Línea {funcCallExpr.Line}, Columna {funcCallExpr.Column}: La función GetActualY no recibe argumentos.");
+        return (int)_currentPosition.Y;
+    }
+    else if (funcCallExpr.FunctionName == "GetCanvasSize")
+    {
+        if (funcCallExpr.Arguments.Any())
+            throw new Exception($"Error en Línea {funcCallExpr.Line}, Columna {funcCallExpr.Column}: La función GetCanvasSize no recibe argumentos.");
+        return new List<int> { _bitmap.PixelWidth, _bitmap.PixelHeight };
+    }
+    else if (funcCallExpr.FunctionName == "Call")
+    {
+        if (funcCallExpr.Arguments.Count < 1)
+            throw new Exception("CALL espera al menos el nombre de la función.");
+        string funcName = (string)VisitExpression(funcCallExpr.Arguments[0]);
+        var callArgs = funcCallExpr.Arguments.Skip(1).Select(VisitExpression).ToList();
+        return CallUserFunction(funcName, callArgs);
+    }
+    else if (_functions.ContainsKey(funcCallExpr.FunctionName))
+    {
+        var callArgs = funcCallExpr.Arguments.Select(VisitExpression).ToList();
+        return CallUserFunction(funcCallExpr.FunctionName, callArgs);
+    }
+    else if (funcCallExpr.FunctionName == "GetColorCount")
+    {
+        if (funcCallExpr.Arguments.Count != 5)
+            throw new Exception($"'GetColorCount' espera exactamente 5 argumentos. Línea: {funcCallExpr.Line}, Columna: {funcCallExpr.Column}");
 
-            // Primero, revisamos si es una de las nuevas funciones del sistema.
-            if (funcCallExpr.FunctionName == "GetActualX")
-            {
-                if (funcCallExpr.Arguments.Any())
-                    throw new Exception($"Error en Línea {funcCallExpr.Line}, Columna {funcCallExpr.Column}: La función GetActualX no recibe argumentos.");
-                return (int)_currentPosition.X;
-            }
-            else if (funcCallExpr.FunctionName == "GetActualY")
-            {
-                if (funcCallExpr.Arguments.Any())
-                    throw new Exception($"Error en Línea {funcCallExpr.Line}, Columna {funcCallExpr.Column}: La función GetActualY no recibe argumentos.");
-                return (int)_currentPosition.Y;
-            }
-            // Si no, continuamos con la lógica que ya tenías para funciones de usuario.
-            else if (funcCallExpr.FunctionName == "Call")
-            {
-                if (funcCallExpr.Arguments.Count < 1)
-                    throw new Exception("CALL espera al menos el nombre de la función.");
-                string funcName = (string)VisitExpression(funcCallExpr.Arguments[0]);
-                var callArgs = funcCallExpr.Arguments.Skip(1).Select(VisitExpression).ToList();
-                return CallUserFunction(funcName, callArgs);
-            }
-            else if (_functions.ContainsKey(funcCallExpr.FunctionName))
-            {
-                var callArgs = funcCallExpr.Arguments.Select(VisitExpression).ToList();
-                return CallUserFunction(funcCallExpr.FunctionName, callArgs);
-            }
-            else
-            {
-                // Si llega hasta aquí, la función no se reconoce.
-                throw new Exception($"Función '{funcCallExpr.FunctionName}' no reconocida como expresión. Línea: {funcCallExpr.Line}, Columna: {funcCallExpr.Column}");
-            }
-            // ---------- FIN DE LA SECCIÓN MODIFICADA ----------
+        var args = funcCallExpr.Arguments.Select(VisitExpression).ToList();
+
+        if (!(args[0] is string colorName) ||
+            !(args[1] is int x1) || !(args[2] is int y1) ||
+            !(args[3] is int x2) || !(args[4] is int y2))
+        {
+            throw new Exception($"Argumentos inválidos para 'GetColorCount'. Línea: {funcCallExpr.Line}, Columna: {funcCallExpr.Column}");
+        }
+
+        Color targetColor = ParseColor(colorName, funcCallExpr.Line, funcCallExpr.Column);
+        return GetColorCountInRegion(targetColor, x1, y1, x2, y2);
+    }
+    else if (funcCallExpr.FunctionName == "IsBrushColor")
+{
+    if (funcCallExpr.Arguments.Count != 1)
+        throw new Exception($"'IsBrushColor' espera un argumento. Línea: {funcCallExpr.Line}, Columna: {funcCallExpr.Column}");
+
+    var arg = VisitExpression(funcCallExpr.Arguments[0]);
+    if (arg is not string colorName)
+        throw new Exception($"El argumento de 'IsBrushColor' debe ser un string. Línea: {funcCallExpr.Line}, Columna: {funcCallExpr.Column}");
+
+    Color colorToCheck = ParseColor(colorName, funcCallExpr.Line, funcCallExpr.Column);
+    return AreColorsEqual(_currentColor, colorToCheck);
+}
+
+else if (funcCallExpr.FunctionName == "IsBrushSize")
+{
+    if (funcCallExpr.Arguments.Count != 1)
+        throw new Exception($"'IsBrushSize' espera un argumento. Línea: {funcCallExpr.Line}, Columna: {funcCallExpr.Column}");
+
+    var arg = VisitExpression(funcCallExpr.Arguments[0]);
+    if (arg is not int size)
+        throw new Exception($"El argumento de 'IsBrushSize' debe ser un entero. Línea: {funcCallExpr.Line}, Columna: {funcCallExpr.Column}");
+
+    return _currentThickness == size;
+}
+
+else if (funcCallExpr.FunctionName == "IsCanvasColor")
+{
+    if (funcCallExpr.Arguments.Count != 1)
+        throw new Exception($"'IsCanvasColor' espera un argumento. Línea: {funcCallExpr.Line}, Columna: {funcCallExpr.Column}");
+
+    var arg = VisitExpression(funcCallExpr.Arguments[0]);
+    if (arg is not string colorName)
+        throw new Exception($"El argumento de 'IsCanvasColor' debe ser un string. Línea: {funcCallExpr.Line}, Columna: {funcCallExpr.Column}");
+
+    Color target = ParseColor(colorName, funcCallExpr.Line, funcCallExpr.Column);
+    Color actual = GetPixelColor((int)_currentPosition.X, (int)_currentPosition.Y);
+
+    return AreColorsEqual(actual, target);
+}
+    else
+                    {
+                        throw new Exception($"Función '{funcCallExpr.FunctionName}' no reconocida como expresión. Línea: {funcCallExpr.Line}, Columna: {funcCallExpr.Column}");
+                    }
 
         default:
             throw new NotImplementedException($"La expresión de tipo '{expression.GetType().Name}' aún no está implementada en el intérprete. Línea: {expression.Line}, Columna: {expression.Column}");
@@ -366,6 +429,12 @@ namespace Interfaz.Language
                     case TokenType.PLUS: return lInt + rInt;
                     case TokenType.MINUS: return lInt - rInt;
                     case TokenType.MULTIPLY: return lInt * rInt;
+                    case TokenType.POWER: 
+                    if (rInt < 0)
+                        {
+                            throw new Exception($"Error semántico: El exponente debe ser un entero no negativo para potencias enteras. Línea {expr.Line}, Columna {expr.Column}");
+                        }
+                        return (int)Math.Pow(lInt, rInt);
                     case TokenType.DIVIDE:
                         if (rInt == 0)
                             throw new Exception($"Error en tiempo de ejecución en Línea {expr.Line}, Columna {expr.Column}: División por cero.");
@@ -473,9 +542,45 @@ namespace Interfaz.Language
                 case "yellow": return Colors.Yellow;
                 case "orange": return Colors.Orange;
                 case "purple": return Colors.Purple;
+                case "brown": return Colors.Brown;
+                case "gray": return Colors.Gray;
+                case "pink": return Colors.Pink;
+                case "cyan": return Colors.Cyan;
+                case "magenta": return Colors.Magenta;
                 default:
-                    throw new Exception($"Error semántico en Línea {line}, Columna {column}: Color '{colorName}' no reconocido.");
+                    throw new Exception($"Color '{colorName}' no reconocido en Línea: {line}, Columna: {column}.");
             }
+        }
+
+        private int GetColorCountInRegion(Color targetColor, int x1, int y1, int x2, int y2)
+        {
+            int count = 0;
+            _bitmap.Lock();
+            unsafe
+            {
+                int* pBackBuffer = (int*)_bitmap.BackBuffer;
+                int stride = _bitmap.BackBufferStride / 4; 
+
+                int startX = Math.Min(x1, x2);
+                int endX = Math.Max(x1, x2);
+                int startY = Math.Min(y1, y2);
+                int endY = Math.Max(y1, y2);
+
+                int targetColorInt = (targetColor.A << 24) | (targetColor.R << 16) | (targetColor.G << 8) | targetColor.B;
+
+                for (int y = startY; y <= endY; y++)
+                {
+                    for (int x = startX; x <= endX; x++)
+                    {
+                        if (pBackBuffer[y * stride + x] == targetColorInt)
+                        {
+                            count++;
+                        }
+                    }
+                }
+            }
+            _bitmap.Unlock();
+            return count;
         }
 
         // Dibuja una línea en el WriteableBitmap usando Bresenham
@@ -734,6 +839,53 @@ namespace Interfaz.Language
                     if (args.Count != 0)
                         throw new Exception("GetActualY no recibe argumentos.");
                     return (int)_currentPosition.Y;
+                
+                case "GetCanvasSize":
+                    if (args.Count != 0)
+                        throw new Exception("GetCanvasSize no recibe argumentos.");
+                    return new List<int> { _bitmap.PixelWidth, _bitmap.PixelHeight };
+
+                case "GetColorCount": 
+                   
+                    if (args.Count != 5 ||
+                        !(args[0] is string colorName) ||
+                        !(args[1] is int x1) ||
+                        !(args[2] is int y1) ||
+                        !(args[3] is int y2) || 
+                        !(args[4] is int x2) )
+                    {
+                        if (args.Count != 5 ||
+                            !(args[0] is string) ||
+                            !(args[1] is int) ||
+                            !(args[2] is int) ||
+                            !(args[3] is int) ||
+                            !(args[4] is int) )
+                        {
+                            throw new Exception($"'GetColorCount' espera 5 argumentos: (color: string, x1: int, y1: int, x2: int, y2: int). Recibidos: {args.Count} argumentos con tipos incorrectos en Línea: {call.Line}, Columna: {call.Column}.");
+                        }
+                        colorName = (string)args[0];
+                        x1 = (int)args[1];
+                        y1 = (int)args[2];
+                        x2 = (int)args[3]; 
+                        y2 = (int)args[4]; 
+                    }
+
+                    int canvasWidth = _bitmap.PixelWidth;
+                    int canvasHeight = _bitmap.PixelHeight;
+
+                    if (x1 < 0 || x1 >= canvasWidth || y1 < 0 || y1 >= canvasHeight)
+                    {
+                        return 0;
+                    }
+
+                    if (x2 < 0 || x2 >= canvasWidth || y2 < 0 || y2 >= canvasHeight)
+                    {
+                        return 0;
+                    }
+
+                    Color targetColor = ParseColor(colorName, call.Line, call.Column);
+
+                    return GetColorCountInRegion(targetColor, x1, y1, x2, y2);    
 
                 default:
                     if (_functions.ContainsKey(call.FunctionName))

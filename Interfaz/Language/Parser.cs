@@ -417,29 +417,40 @@ namespace Interfaz.Language
 
         private Expression ParseMultiplicative()
         {
-            Expression expr = ParseUnary();
+            Expression expr = ParsePowerExpression();
 
             while (CurrentToken.Type == TokenType.MULTIPLY || CurrentToken.Type == TokenType.DIVIDE || CurrentToken.Type == TokenType.MODULO)
             {
                 Token op = CurrentToken;
                 Advance();
-                expr = new BinaryExpression(expr, op.Type, ParseUnary(), op.Line, op.Column);
+                expr = new BinaryExpression(expr, op.Type, ParsePowerExpression(), op.Line, op.Column);
             }
             return expr;
         }
+        private Expression ParsePowerExpression()
+        {
+            Expression expression = ParseUnary(); 
+            if (CurrentToken.Type == TokenType.POWER)
+            {
+                Token op = Eat(TokenType.POWER);
+                Expression right = ParsePowerExpression();
+                expression = new BinaryExpression(expression, op.Type, right, expression.Line, expression.Column);
+            }
+            return expression;
+        }
 
         private Expression ParseUnary()
-{
-    if (CurrentToken.Type == TokenType.NOT || 
-        CurrentToken.Type == TokenType.MINUS || 
-        CurrentToken.Type == TokenType.PLUS)
-    {
-        Token op = CurrentToken;
-        Advance();
-        return new UnaryExpression(op.Type, ParseUnary(), op.Line, op.Column);
-    }
-    return ParsePrimary();
-}
+        {
+            if (CurrentToken.Type == TokenType.NOT ||
+                CurrentToken.Type == TokenType.MINUS ||
+                CurrentToken.Type == TokenType.PLUS)
+            {
+                Token op = CurrentToken;
+                Advance();
+                return new UnaryExpression(op.Type, ParseUnary(), op.Line, op.Column);
+            }
+            return ParsePrimary();
+        }
 
         private Expression ParsePrimary()
         {
@@ -497,16 +508,89 @@ namespace Interfaz.Language
                     Token getActualXToken = Eat(TokenType.GETACTUALX);
                     Eat(TokenType.LEFT_PAREN);
                     Eat(TokenType.RIGHT_PAREN);
-                    // Pass the token's value (the function name) to the FunctionCall constructor
                     return new FunctionCall(getActualXToken.Value, new List<Expression>(), getActualXToken.Line, getActualXToken.Column);
 
                 case TokenType.GETACTUALY:
                     Token getActualYToken = Eat(TokenType.GETACTUALY);
                     Eat(TokenType.LEFT_PAREN);
                     Eat(TokenType.RIGHT_PAREN);
-                    // Pass the token's value (the function name) to the FunctionCall constructor
                    return new FunctionCall(getActualYToken.Value, new List<Expression>(), getActualYToken.Line, getActualYToken.Column);
+                
+                case TokenType.GETCANVASSIZE:
+                    Token getCanvasSizeToken = Eat(TokenType.GETCANVASSIZE);
+                    Eat(TokenType.LEFT_PAREN);
+                    Eat(TokenType.RIGHT_PAREN);
+                    return new FunctionCall(getCanvasSizeToken.Value, new List<Expression>(), getCanvasSizeToken.Line, getCanvasSizeToken.Column);
 
+                case TokenType.GETCOLORCOUNT: 
+                    Token getColorCountToken = Eat(TokenType.GETCOLORCOUNT); 
+                    Eat(TokenType.LEFT_PAREN); 
+
+                    Expression colorExpr = ParseExpression(); 
+                    Eat(TokenType.COMMA);
+                    Expression x1Expr = ParseExpression();  
+                    Eat(TokenType.COMMA); 
+                    Expression y1Expr = ParseExpression();   
+                    Eat(TokenType.COMMA); 
+                    Expression x2Expr = ParseExpression();   
+                    Eat(TokenType.COMMA); 
+                    Expression y2Expr = ParseExpression();   
+
+                    Eat(TokenType.RIGHT_PAREN); 
+                    return new FunctionCall(getColorCountToken.Value, new List<Expression> { colorExpr, x1Expr, y1Expr, x2Expr, y2Expr }, getColorCountToken.Line, getColorCountToken.Column);
+                case TokenType.ISBRUSHCOLOR:
+                {
+                    Token isBrushColortoken = Eat(TokenType.ISBRUSHCOLOR);
+                    Eat(TokenType.LEFT_PAREN);
+                    List<Expression> args = new();
+                    if (CurrentToken.Type != TokenType.RIGHT_PAREN)
+                    {
+                        args.Add(ParseExpression());
+                        while (CurrentToken.Type == TokenType.COMMA)
+                        {
+                            Eat(TokenType.COMMA);
+                            args.Add(ParseExpression());
+                        }
+                    }
+                    Eat(TokenType.RIGHT_PAREN);
+                    return new FunctionCall("IsBrushColor", args, token.Line, token.Column);
+                }
+
+                case TokenType.ISBRUSHSIZE:
+                {
+                    Token isBrushSizetoken = Eat(TokenType.ISBRUSHSIZE);
+                    Eat(TokenType.LEFT_PAREN);
+                    List<Expression> args = new();
+                    if (CurrentToken.Type != TokenType.RIGHT_PAREN)
+                    {
+                        args.Add(ParseExpression());
+                        while (CurrentToken.Type == TokenType.COMMA)
+                        {
+                            Eat(TokenType.COMMA);
+                            args.Add(ParseExpression());
+                        }
+                    }
+                    Eat(TokenType.RIGHT_PAREN);
+                    return new FunctionCall("IsBrushSize", args, token.Line, token.Column);
+                }
+
+                case TokenType.ISCANVASCOLOR:
+                {
+                    Token IsCanvasColortoken = Eat(TokenType.ISCANVASCOLOR);
+                    Eat(TokenType.LEFT_PAREN);
+                    List<Expression> args = new();
+                    if (CurrentToken.Type != TokenType.RIGHT_PAREN)
+                    {
+                        args.Add(ParseExpression());
+                        while (CurrentToken.Type == TokenType.COMMA)
+                        {
+                            Eat(TokenType.COMMA);
+                            args.Add(ParseExpression());
+                        }
+                    }
+                    Eat(TokenType.RIGHT_PAREN);
+                    return new FunctionCall("IsCanvasColor", args, token.Line, token.Column);
+                }
                 default:
                     throw new Exception($"Error de sintaxis en Línea {token.Line}, Columna {token.Column}: Token inesperado '{token.Value}' de tipo {token.Type}. Se esperaba un literal, identificador, o expresión.");
             }
