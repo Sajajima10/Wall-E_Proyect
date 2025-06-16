@@ -1,9 +1,13 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using Microsoft.Win32;
 
 namespace Interfaz
@@ -19,6 +23,7 @@ namespace Interfaz
             InitializeComponent();
             InitializeCanvas();
 
+            // Asignación de eventos a los botones y controles
             ResizeCanvasButton.Click += ResizeCanvasButton_Click;
             ExecuteButton.Click += ExecuteButton_Click;
             LoadButton.Click += LoadButton_Click;
@@ -26,24 +31,31 @@ namespace Interfaz
             CodeEditor.TextChanged += CodeEditor_TextChanged;
         }
 
+        /// <summary>
+        /// Inicializa o reinicia el canvas con el tamaño especificado.
+        /// </summary>
         private void InitializeCanvas()
         {
-            if (int.TryParse(CanvasSizeTextBox.Text, out int newSize) && newSize > 0 && newSize <= MaxCanvasSize)
+            // Valida el tamaño del canvas introducido en el TextBox
+            if (!int.TryParse(CanvasSizeTextBox.Text, out _canvasSize) || _canvasSize <= 0 || _canvasSize > MaxCanvasSize)
             {
-                _canvasSize = newSize;
-            }
-            else
-            {
+                _canvasSize = 256; // Valor por defecto si la entrada no es válida
                 CanvasSizeTextBox.Text = _canvasSize.ToString();
-                MessageBox.Show($"Dimensiones de canvas no válidas. Debe ser un entero positivo y menor o igual a {MaxCanvasSize}. Se usará el tamaño por defecto.", "Error de Entrada", MessageBoxButton.OK, MessageBoxImage.Warning);
-                _canvasSize = 256;
+                MessageBox.Show($"Dimensiones de canvas no válidas. Se usará el tamaño por defecto de {_canvasSize}x{_canvasSize}.", "Error de Entrada", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
 
             _pixelBitmap = new WriteableBitmap(_canvasSize, _canvasSize, 96, 96, PixelFormats.Bgr32, null);
             PixelCanvas.Source = _pixelBitmap;
-            ClearCanvas();
+
+            ClearCanvas(); // Limpia el canvas a un color base
+            DrawGrid();    // Dibuja la cuadrícula
         }
 
+        /// <summary>
+        /// Limpia el canvas, rellenándolo con un color gris claro.
+        /// Nota: Este método usa código 'unsafe'. Asegúrate de habilitar "Permitir código no seguro"
+        /// en las propiedades de tu proyecto de Visual Studio (Propiedades > Compilación).
+        /// </summary>
         private void ClearCanvas()
         {
             _pixelBitmap.Lock();
@@ -55,6 +67,7 @@ namespace Interfaz
                 {
                     for (int x = 0; x < _canvasSize; x++)
                     {
+                        // Rellena con un color gris claro (LightGray)
                         pBackBuffer[y * stride + x] = unchecked((int)0xFFD3D3D3);
                     }
                 }
@@ -63,77 +76,90 @@ namespace Interfaz
             _pixelBitmap.Unlock();
         }
 
+        /// <summary>
+        /// Dibuja una cuadrícula sobre el canvas para visualizar los píxeles.
+        /// </summary>
+        private void DrawGrid()
+        {
+            GridOverlay.Children.Clear();
+            double scale = ((ScaleTransform)PixelCanvas.LayoutTransform).ScaleX;
+
+            if (scale <= 1) return; // No dibujar la cuadrícula si no hay zoom
+
+            GridOverlay.Width = _canvasSize * scale;
+            GridOverlay.Height = _canvasSize * scale;
+
+            // Dibuja líneas verticales
+            for (int i = 0; i <= _canvasSize; i++)
+            {
+                GridOverlay.Children.Add(new Line
+                {
+                    X1 = i * scale, Y1 = 0, X2 = i * scale, Y2 = _canvasSize * scale,
+                    Stroke = Brushes.Black, StrokeThickness = 0.5
+                });
+            }
+
+            // Dibuja líneas horizontales
+            for (int i = 0; i <= _canvasSize; i++)
+            {
+                GridOverlay.Children.Add(new Line
+                {
+                    X1 = 0, Y1 = i * scale, X2 = _canvasSize * scale, Y2 = i * scale,
+                    Stroke = Brushes.Black, StrokeThickness = 0.5
+                });
+            }
+        }
+
         private void ResizeCanvasButton_Click(object sender, RoutedEventArgs e)
         {
-            if (int.TryParse(CanvasSizeTextBox.Text, out int newSize) && newSize > 0 && newSize <= MaxCanvasSize)
-            {
-                _canvasSize = newSize;
-                InitializeCanvas();
-                MessageBox.Show($"Canvas redimensionado a {_canvasSize}x{_canvasSize} y limpiado.", "Canvas Redimensionado");
-            }
-            else
-            {
-                MessageBox.Show($"Por favor, ingrese un número entero válido, positivo y menor o igual a {MaxCanvasSize} para las dimensiones del canvas.", "Error de Entrada", MessageBoxButton.OK, MessageBoxImage.Error);
-                CanvasSizeTextBox.Text = _canvasSize.ToString();
-            }
+            // Re-inicializa todo el canvas con el nuevo tamaño
+            InitializeCanvas();
+            MessageBox.Show($"Canvas redimensionado a {_canvasSize}x{_canvasSize}.", "Canvas Redimensionado", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void ExecuteButton_Click(object sender, RoutedEventArgs e)
         {
-            string code = new TextRange(CodeEditor.Document.ContentStart, CodeEditor.Document.ContentEnd).Text.TrimEnd('\r', '\n');
+            string code = new TextRange(CodeEditor.Document.ContentStart, CodeEditor.Document.ContentEnd).Text.Trim();
             OutputTextBox.Text = ""; // Limpia la salida anterior
 
-            // Lexer y Parser
-            Interfaz.Language.Lexer lexer = new Interfaz.Language.Lexer(code);
-            List<Interfaz.Language.Token> tokens = lexer.Tokenize();
-            Interfaz.Language.Parser parser = new Interfaz.Language.Parser(tokens);
-            Interfaz.Language.AST.ProgramNode programNode;
+            var lexer = new Language.Lexer(code);
+            var tokens = lexer.Tokenize();
+            var parser = new Language.Parser(tokens);
 
             try
             {
-                programNode = parser.ParseProgram();
-            }
-            catch (Exception ex)
-            {
-                OutputTextBox.Text = "Error de parsing:\n" + ex.Message;
-                return;
-            }
+                var programNode = parser.ParseProgram();
+                var interpreter = new Language.Interpreter(_pixelBitmap);
 
-            // Interpreter
-            Interfaz.Language.Interpreter interpreter = new Interfaz.Language.Interpreter(_pixelBitmap); // Usa tu Canvas aquí
-            interpreter.OnOutputMessage += (msg) =>
-            {
-                OutputTextBox.Dispatcher.Invoke(() =>
+                interpreter.OnOutputMessage += (msg) =>
                 {
-                    OutputTextBox.AppendText(msg + Environment.NewLine);
-                });
-            };
+                    OutputTextBox.Dispatcher.Invoke(() => OutputTextBox.AppendText(msg + Environment.NewLine));
+                };
 
-            try
-            {
                 interpreter.Interpret(programNode);
             }
             catch (Exception ex)
             {
-                OutputTextBox.AppendText("Error de ejecución:\n" + ex.Message);
+                OutputTextBox.AppendText($"Error: {ex.Message}");
             }
         }
 
         private void LoadButton_Click(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Filter = "Archivos Pixel Wall-E (*.pw)|*.pw|Todos los archivos (*.*)|*.*";
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Filter = "Archivos Pixel Wall-E (*.pw)|*.pw|Todos los archivos (*.*)|*.*"
+            };
             if (openFileDialog.ShowDialog() == true)
             {
-                string filePath = openFileDialog.FileName;
                 try
                 {
-                    string fileContent = File.ReadAllText(filePath);
+                    string fileContent = File.ReadAllText(openFileDialog.FileName);
                     CodeEditor.Document.Blocks.Clear();
                     CodeEditor.Document.Blocks.Add(new Paragraph(new Run(fileContent)));
-                    MessageBox.Show($"Archivo '{System.IO.Path.GetFileName(filePath)}' cargado exitosamente.", "Cargar Archivo", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show($"Archivo '{System.IO.Path.GetFileName(openFileDialog.FileName)}' cargado exitosamente.", "Cargar Archivo", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     MessageBox.Show($"Error al cargar el archivo: {ex.Message}", "Error de Carga", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
@@ -142,25 +168,21 @@ namespace Interfaz
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            SaveFileDialog saveFileDialog = new SaveFileDialog();
-            saveFileDialog.Filter = "Archivos Pixel Wall-E (*.pw)|*.pw|Todos los archivos (*.*)|*.*";
-            saveFileDialog.FileName = "mi_pixel_art.pw";
+            SaveFileDialog saveFileDialog = new SaveFileDialog
+            {
+                Filter = "Archivos Pixel Wall-E (*.pw)|*.pw|Todos los archivos (*.*)|*.*",
+                FileName = "mi_pixel_art.pw"
+            };
             if (saveFileDialog.ShowDialog() == true)
             {
                 string filePath = saveFileDialog.FileName;
-                if (File.Exists(filePath))
-                {
-                    MessageBoxResult result = MessageBox.Show($"El archivo '{System.IO.Path.GetFileName(filePath)}' ya existe. ¿Desea sobrescribirlo?", "Confirmar Sobrescritura", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-                    if (result != MessageBoxResult.Yes)
-                        return;
-                }
                 string fileContent = new TextRange(CodeEditor.Document.ContentStart, CodeEditor.Document.ContentEnd).Text.TrimEnd('\r', '\n');
                 try
                 {
                     File.WriteAllText(filePath, fileContent);
                     MessageBox.Show($"Archivo '{System.IO.Path.GetFileName(filePath)}' guardado exitosamente.", "Guardar Archivo", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     MessageBox.Show($"Error al guardar el archivo: {ex.Message}", "Error al Guardar", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
@@ -175,8 +197,8 @@ namespace Interfaz
         private void UpdateLineNumbers()
         {
             string fullText = new TextRange(CodeEditor.Document.ContentStart, CodeEditor.Document.ContentEnd).Text;
-            string[] lines = fullText.Split(new[] { "\r\n", "\n", "\r" }, System.StringSplitOptions.None);
-            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            string[] lines = fullText.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+            StringBuilder sb = new StringBuilder();
             for (int i = 1; i <= lines.Length; i++)
             {
                 sb.AppendLine(i.ToString());
