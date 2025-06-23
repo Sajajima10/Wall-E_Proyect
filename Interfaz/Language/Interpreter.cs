@@ -20,6 +20,7 @@ namespace Interfaz.Language
         private double _currentRotation;
 
         public event Action<string> OnOutputMessage;
+        public event Action<Point> OnBrushMoved;
 
         private Dictionary<string, FunctionDefinition> _functions = new();
 
@@ -177,6 +178,7 @@ namespace Interfaz.Language
                     if (evaluatedArgs.Count != 2 || !(evaluatedArgs[0] is int x) || !(evaluatedArgs[1] is int y))
                         throw new Exception($"'Spawn' espera dos enteros (x, y).");
                     _currentPosition = new Point(x, y);
+                    OnBrushMoved?.Invoke(_currentPosition);
                     break;
 
                 case "Color":
@@ -649,6 +651,7 @@ else if (funcCallExpr.FunctionName == "IsCanvasColor")
             Point end = new Point(endX, endY);
             DrawLineOnBitmap(start, end, 1);
             _currentPosition = end;
+            OnBrushMoved?.Invoke(_currentPosition);
         }
 
 
@@ -664,6 +667,7 @@ else if (funcCallExpr.FunctionName == "IsCanvasColor")
 
             DrawLineOnBitmap(start, end, _currentThickness); // Usa grosor actual
             _currentPosition = end;
+            OnBrushMoved?.Invoke(_currentPosition);
         }
 
         private void DrawCircle(int dirX, int dirY, int radius)
@@ -689,7 +693,8 @@ else if (funcCallExpr.FunctionName == "IsCanvasColor")
                 prev = current;
             }
 
-            _currentPosition = center; // La nueva posición es el centro del círculo
+            _currentPosition = center;
+            OnBrushMoved?.Invoke(_currentPosition); // La nueva posición es el centro del círculo
         }
         // Excepción interna para manejar return
         private class ReturnException : Exception

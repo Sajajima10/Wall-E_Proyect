@@ -23,7 +23,6 @@ namespace Interfaz
             InitializeComponent();
             InitializeCanvas();
 
-            // Asignación de eventos a los botones y controles
             ResizeCanvasButton.Click += ResizeCanvasButton_Click;
             ExecuteButton.Click += ExecuteButton_Click;
             LoadButton.Click += LoadButton_Click;
@@ -31,15 +30,11 @@ namespace Interfaz
             CodeEditor.TextChanged += CodeEditor_TextChanged;
         }
 
-        /// <summary>
-        /// Inicializa o reinicia el canvas con el tamaño especificado.
-        /// </summary>
         private void InitializeCanvas()
         {
-            // Valida el tamaño del canvas introducido en el TextBox
             if (!int.TryParse(CanvasSizeTextBox.Text, out _canvasSize) || _canvasSize <= 0 || _canvasSize > MaxCanvasSize)
             {
-                _canvasSize = 256; // Valor por defecto si la entrada no es válida
+                _canvasSize = 256; 
                 CanvasSizeTextBox.Text = _canvasSize.ToString();
                 MessageBox.Show($"Dimensiones de canvas no válidas. Se usará el tamaño por defecto de {_canvasSize}x{_canvasSize}.", "Error de Entrada", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
@@ -47,15 +42,10 @@ namespace Interfaz
             _pixelBitmap = new WriteableBitmap(_canvasSize, _canvasSize, 96, 96, PixelFormats.Bgr32, null);
             PixelCanvas.Source = _pixelBitmap;
 
-            ClearCanvas(); // Limpia el canvas a un color base
-            DrawGrid();    // Dibuja la cuadrícula
+            ClearCanvas(); 
+            DrawGrid();    
         }
 
-        /// <summary>
-        /// Limpia el canvas, rellenándolo con un color gris claro.
-        /// Nota: Este método usa código 'unsafe'. Asegúrate de habilitar "Permitir código no seguro"
-        /// en las propiedades de tu proyecto de Visual Studio (Propiedades > Compilación).
-        /// </summary>
         private void ClearCanvas()
         {
             _pixelBitmap.Lock();
@@ -67,7 +57,6 @@ namespace Interfaz
                 {
                     for (int x = 0; x < _canvasSize; x++)
                     {
-                        // Rellena con un color gris claro (LightGray)
                         pBackBuffer[y * stride + x] = unchecked((int)0xFFD3D3D3);
                     }
                 }
@@ -76,43 +65,45 @@ namespace Interfaz
             _pixelBitmap.Unlock();
         }
 
-        /// <summary>
-        /// Dibuja una cuadrícula sobre el canvas para visualizar los píxeles.
-        /// </summary>
         private void DrawGrid()
         {
             GridOverlay.Children.Clear();
             double scale = ((ScaleTransform)PixelCanvas.LayoutTransform).ScaleX;
 
-            if (scale <= 1) return; // No dibujar la cuadrícula si no hay zoom
+            if (scale <= 1) return; 
 
             GridOverlay.Width = _canvasSize * scale;
             GridOverlay.Height = _canvasSize * scale;
 
-            // Dibuja líneas verticales
             for (int i = 0; i <= _canvasSize; i++)
             {
                 GridOverlay.Children.Add(new Line
                 {
-                    X1 = i * scale, Y1 = 0, X2 = i * scale, Y2 = _canvasSize * scale,
-                    Stroke = Brushes.Black, StrokeThickness = 0.5
+                    X1 = i * scale,
+                    Y1 = 0,
+                    X2 = i * scale,
+                    Y2 = _canvasSize * scale,
+                    Stroke = Brushes.Black,
+                    StrokeThickness = 0.5
                 });
             }
 
-            // Dibuja líneas horizontales
             for (int i = 0; i <= _canvasSize; i++)
             {
                 GridOverlay.Children.Add(new Line
                 {
-                    X1 = 0, Y1 = i * scale, X2 = _canvasSize * scale, Y2 = i * scale,
-                    Stroke = Brushes.Black, StrokeThickness = 0.5
+                    X1 = 0,
+                    Y1 = i * scale,
+                    X2 = _canvasSize * scale,
+                    Y2 = i * scale,
+                    Stroke = Brushes.Black,
+                    StrokeThickness = 0.5
                 });
             }
         }
 
         private void ResizeCanvasButton_Click(object sender, RoutedEventArgs e)
         {
-            // Re-inicializa todo el canvas con el nuevo tamaño
             InitializeCanvas();
             MessageBox.Show($"Canvas redimensionado a {_canvasSize}x{_canvasSize}.", "Canvas Redimensionado", MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -120,7 +111,7 @@ namespace Interfaz
         private void ExecuteButton_Click(object sender, RoutedEventArgs e)
         {
             string code = new TextRange(CodeEditor.Document.ContentStart, CodeEditor.Document.ContentEnd).Text.Trim();
-            OutputTextBox.Text = ""; // Limpia la salida anterior
+            OutputTextBox.Text = ""; 
 
             var lexer = new Language.Lexer(code);
             var tokens = lexer.Tokenize();
@@ -130,6 +121,7 @@ namespace Interfaz
             {
                 var programNode = parser.ParseProgram();
                 var interpreter = new Language.Interpreter(_pixelBitmap);
+                interpreter.OnBrushMoved += UpdateBrushIndicator;
 
                 interpreter.OnOutputMessage += (msg) =>
                 {
@@ -205,5 +197,16 @@ namespace Interfaz
             }
             LineNumbersTextBlock.Text = sb.ToString();
         }
+        
+        private void UpdateBrushIndicator(Point pos)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                double scale = 8;
+                BrushIndicator.Visibility = Visibility.Visible;
+                Canvas.SetLeft(BrushIndicator, pos.X * scale - BrushIndicator.Width / 2);
+                Canvas.SetTop(BrushIndicator, pos.Y * scale - BrushIndicator.Height / 2);
+            });
+        }
     }
-}
+} 

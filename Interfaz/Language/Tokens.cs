@@ -1,10 +1,8 @@
-// En un archivo nuevo: Tokens.cs (o dentro de una carpeta Language)
 namespace Interfaz.Language
 {
 
     public enum TokenType
     {
-        // Palabras Clave (Instrucciones y Control de Flujo)
         SPAWN,
         COLOR,
         DRAWLINE,
@@ -32,43 +30,38 @@ namespace Interfaz.Language
         SIZE,
         FILL,
 
-        // Operadores
-        PLUS,         // +
-        MINUS,        // -
-        MULTIPLY,     // *
-        DIVIDE,       // /
-        ASSIGN,       // =
-        EQUALS,       // ==
-        NOT_EQUALS,   // !=
-        LESS,         // <
-        GREATER,      // >
-        LESS_EQUALS,  // <=
-        GREATER_EQUALS,// >=
-        MODULO, // %
-        AND,          // &&
-        OR,           // ||
-        NOT,          // !
-        POWER,        // **
+        PLUS,         
+        MINUS,        
+        MULTIPLY,     
+        DIVIDE,       
+        ASSIGN,       
+        EQUALS,       
+        NOT_EQUALS,   
+        LESS,         
+        GREATER,      
+        LESS_EQUALS,  
+        GREATER_EQUALS,
+        MODULO, 
+        AND,          
+        OR,           
+        NOT,          
+        POWER,        
 
-        // Delimitadores / Símbolos
-        LEFT_PAREN,     // (
-        RIGHT_PAREN,    // )
-        LEFT_BRACKET,   // [
-        RIGHT_BRACKET,  // ]
-        COMMA,          // ,
-        ASSIGN_LEFT, // <-
+        LEFT_PAREN,     
+        RIGHT_PAREN,    
+        LEFT_BRACKET,   
+        RIGHT_BRACKET,  
+        COMMA,          
+        ASSIGN_LEFT, 
 
-        // Literales
-        INTEGER_LITERAL, // Ej: 123, 0, -45
-        STRING_LITERAL,  // Ej: "Blue", "Red"
+        INTEGER_LITERAL, 
+        STRING_LITERAL,  
 
-        // Otros
-        IDENTIFIER,     // Nombres de variables, funciones, etiquetas
-        NEWLINE,        // Salto de línea (importante como separador de instrucciones)
-        EOF,            // End Of File (Fin de la entrada)
+        IDENTIFIER,     
+        NEWLINE,        
+        EOF,            
         UNKNOWN,
 
-        // Sistema
         GETACTUALX,
         GETACTUALY,
         GETCANVASSIZE,

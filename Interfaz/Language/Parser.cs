@@ -83,18 +83,18 @@ namespace Interfaz.Language
                     statement = ParseFunctionLikeStatement();
                     break;
                 case TokenType.DRAWRECTANGLE:
-                    Token drawRectangleToken = Eat(TokenType.DRAWRECTANGLE); // Consume el token DRAWRECTANGLE
-                    Eat(TokenType.LEFT_PAREN); // Consume (
+                    Token drawRectangleToken = Eat(TokenType.DRAWRECTANGLE); 
+                    Eat(TokenType.LEFT_PAREN); 
 
                     Expression dxExpr = ParseExpression();
-                    Eat(TokenType.COMMA); // Consume la primera coma
+                    Eat(TokenType.COMMA); 
                     Expression dyExpr = ParseExpression();
-                    Eat(TokenType.COMMA); // Consume la segunda coma
+                    Eat(TokenType.COMMA); 
                     Expression widthExpr = ParseExpression();
-                    Eat(TokenType.COMMA); // Consume la tercera coma
+                    Eat(TokenType.COMMA); 
                     Expression heightExpr = ParseExpression();
 
-                    Eat(TokenType.RIGHT_PAREN); // Consume )
+                    Eat(TokenType.RIGHT_PAREN); 
 
                 return new DrawRectangleStatement(dxExpr, dyExpr, widthExpr, heightExpr, drawRectangleToken.Line, drawRectangleToken.Column);
                 case TokenType.SIZE:
@@ -126,13 +126,11 @@ namespace Interfaz.Language
                     break;
 
                 case TokenType.IDENTIFIER:
-                    // Asignación tipo i <- expr
                     if (PeekToken().Type == TokenType.ASSIGN_LEFT)
                     {
                         statement = ParseLeftAssignStatement();
                         break;
                     }
-                    // Si la línea es solo un identificador seguido de NEWLINE o EOF, es una etiqueta
                     if (PeekToken().Type == TokenType.NEWLINE || PeekToken().Type == TokenType.EOF)
                     {
                         statement = ParseLabelStatement();
@@ -202,13 +200,11 @@ namespace Interfaz.Language
             var trueBlock = new List<Statement>();
             var falseBlock = new List<Statement>();
 
-            // Salta líneas vacías antes del bloque verdadero
             while (CurrentToken.Type == TokenType.NEWLINE)
                 Advance();
 
             while (CurrentToken.Type != TokenType.ELSE && CurrentToken.Type != TokenType.ENDIF && CurrentToken.Type != TokenType.EOF)
             {
-                // Salta líneas vacías dentro del bloque
                 while (CurrentToken.Type == TokenType.NEWLINE)
                     Advance();
 
@@ -222,13 +218,11 @@ namespace Interfaz.Language
             {
                 Eat(TokenType.ELSE);
 
-                // Salta líneas vacías antes del bloque falso
                 while (CurrentToken.Type == TokenType.NEWLINE)
                     Advance();
 
                 while (CurrentToken.Type != TokenType.ENDIF && CurrentToken.Type != TokenType.EOF)
                 {
-                    // Salta líneas vacías dentro del bloque
                     while (CurrentToken.Type == TokenType.NEWLINE)
                         Advance();
 
@@ -253,7 +247,6 @@ namespace Interfaz.Language
             Eat(TokenType.TO);
             Expression to = ParseExpression();
 
-            // Salta líneas vacías antes del cuerpo
             while (CurrentToken.Type == TokenType.NEWLINE)
                 Advance();
 
@@ -352,8 +345,6 @@ namespace Interfaz.Language
 
             return new Assignment(varNameToken.Value, value, line, column);
         }
-
-        // --- Cambia la jerarquía de precedencia para incluir operadores lógicos ---
 
         private Expression ParseExpression()
         {
@@ -468,7 +459,6 @@ namespace Interfaz.Language
                 case TokenType.IDENTIFIER:
                     Eat(TokenType.IDENTIFIER);
 
-                    // Comprobar si es llamada a función: IDENTIFIER seguido de LEFT_PAREN
                     if (CurrentToken.Type == TokenType.LEFT_PAREN)
                     {
                         Eat(TokenType.LEFT_PAREN);

@@ -99,7 +99,6 @@ namespace Interfaz.Language.AST
         }
     }
 
-    // --- FUNCIONES DE USUARIO ---
     public class FunctionDefinition : Statement
     {
         public string Name { get; }

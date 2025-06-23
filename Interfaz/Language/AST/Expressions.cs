@@ -5,7 +5,6 @@ namespace Interfaz.Language.AST
         protected Expression(int line, int column) : base(line, column) { }
     }
 
-    // Literales enteros (ej: 10, -5, 0)
     public class IntegerLiteral : Expression
     {
         public int Value { get; }
@@ -16,7 +15,6 @@ namespace Interfaz.Language.AST
         }
     }
 
-    // Literales de cadena (ej: "red", "hello")
     public class StringLiteral : Expression
     {
         public string Value { get; }
@@ -27,7 +25,6 @@ namespace Interfaz.Language.AST
         }
     }
 
-    // Identificadores (nombres de variables, ej: x, y)
     public class IdentifierExpression : Expression
     {
         public string Name { get; }
@@ -38,7 +35,6 @@ namespace Interfaz.Language.AST
         }
     }
 
-    // Expresiones binarias (operaciones como +, -, *, /, ==, !=, <, >, <=, >=)
     public class BinaryExpression : Expression
     {
         public Expression Left { get; }
