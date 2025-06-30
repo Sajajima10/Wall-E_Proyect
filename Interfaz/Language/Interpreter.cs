@@ -5,6 +5,7 @@ using Interfaz.Language.AST;
 using System.Windows.Media;
 using System.Windows;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace Interfaz.Language
 {
@@ -23,6 +24,10 @@ namespace Interfaz.Language
         public event Action<Point> OnBrushMoved;
 
         private Dictionary<string, FunctionDefinition> _functions = new();
+
+        public bool IsAnimationEnabled { get; set; } = true; // Activada por defecto
+        public int AnimationDelayMs { get; set; } = 10; // 10 ms por píxel
+        private Dispatcher _dispatcher => System.Windows.Application.Current?.Dispatcher;
 
         public Interpreter(WriteableBitmap bitmap)
         {
@@ -869,6 +874,12 @@ else if (funcCallExpr.FunctionName == "IsCanvasColor")
             }
             _bitmap.AddDirtyRect(new Int32Rect(x, y, 1, 1));
             _bitmap.Unlock();
+
+            if (IsAnimationEnabled && _dispatcher != null)
+            {
+                _dispatcher.Invoke(() => { }, DispatcherPriority.Render);
+                System.Threading.Thread.Sleep(AnimationDelayMs);
+            }
         }
         private object EvaluateFunctionExpression(FunctionCall call)
         {

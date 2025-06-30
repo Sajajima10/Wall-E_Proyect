@@ -93,6 +93,10 @@
                     <Button x:Name="SaveButton" Content="Guardar" Style="{StaticResource ModernButton}" Margin="5,0"/>
                     <Button x:Name="ExecuteButton" Content="Ejecutar" Style="{StaticResource ModernButtonAccent}" Margin="5,0"/>
                     <Button x:Name="ExamplesButton" Content="Ejemplos" Style="{StaticResource ModernButton}" Margin="5,0"/>
+                    <Button x:Name="AnimationToggleButton" Content="Animación: ON" Style="{StaticResource ModernButton}" Margin="5,0" Click="AnimationToggleButton_Click"/>
+                    <TextBlock Text="Zoom:" VerticalAlignment="Center" Margin="10,0,6,0"/>
+                    <Slider x:Name="ZoomSlider" Minimum="1" Maximum="32" Value="8" Width="120" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="ZoomSlider_ValueChanged"/>
+                    <TextBlock x:Name="ZoomValueText" Text="8x" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 </StackPanel>
                 <Button x:Name="CloseButton" Grid.Column="1" Content="✕" Width="36" Height="36" Margin="0,6,8,6" VerticalAlignment="Top" HorizontalAlignment="Right" Style="{StaticResource CloseButtonStyle}" Click="CloseButton_Click"/>
             </Grid>
@@ -120,7 +124,7 @@
                                Stretch="None"
                                RenderOptions.BitmapScalingMode="NearestNeighbor">
                             <Image.LayoutTransform>
-                                <ScaleTransform ScaleX="8" ScaleY="8"/>
+                                <ScaleTransform x:Name="CanvasScaleTransform" ScaleX="8" ScaleY="8"/>
                             </Image.LayoutTransform>
                         </Image>
 

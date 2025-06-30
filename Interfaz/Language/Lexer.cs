@@ -37,9 +37,33 @@ namespace Interfaz.Language
         public List<Token> Tokenize()
         {
             var tokens = new List<Token>();
+            bool inComment = false;
 
             while (_position < _input.Length)
             {
+                if (!inComment && CurrentChar == '/' && Peek() == '/')
+                {
+                    // Detecta inicio de comentario de bloque
+                    Advance(); // primer /
+                    Advance(); // segundo /
+                    inComment = true;
+                    continue;
+                }
+                if (inComment)
+                {
+                    // Busca el cierre del comentario
+                    if (CurrentChar == '/' && Peek() == '/' && _position + 2 < _input.Length && _input[_position + 2] == '>')
+                    {
+                        // Detecta //>
+                        Advance(); // /
+                        Advance(); // /
+                        Advance(); // >
+                        inComment = false;
+                        continue;
+                    }
+                    Advance();
+                    continue;
+                }
                 char c = CurrentChar;
                 int startLine = _line;
                 int startColumn = _column;

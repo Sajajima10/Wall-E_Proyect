@@ -17,6 +17,7 @@ namespace Interfaz
         private WriteableBitmap _pixelBitmap;
         private int _canvasSize = 256;
         private const int MaxCanvasSize = 1024;
+        private bool _isAnimationEnabled = true;
 
         private readonly List<(string Titulo, string Codigo)> ejemplosPixelWallE = new()
         {
@@ -280,6 +281,9 @@ EndLoop
             CodeEditor.TextChanged += CodeEditor_TextChanged;
             ExamplesButton.Click += ExamplesButton_Click;
             CloseButton.Click += CloseButton_Click;
+            AnimationToggleButton.Content = "Animación: ON";
+            ZoomSlider.Value = 8;
+            ZoomValueText.Text = "8x";
         }
 
         private void InitializeCanvas()
@@ -363,7 +367,7 @@ EndLoop
         private void ExecuteButton_Click(object sender, RoutedEventArgs e)
         {
             string code = new TextRange(CodeEditor.Document.ContentStart, CodeEditor.Document.ContentEnd).Text.Trim();
-            OutputTextBox.Text = ""; 
+            OutputTextBox.Text = "";
 
             var lexer = new Language.Lexer(code);
             var tokens = lexer.Tokenize();
@@ -374,12 +378,12 @@ EndLoop
                 var programNode = parser.ParseProgram();
                 var interpreter = new Language.Interpreter(_pixelBitmap);
                 interpreter.OnBrushMoved += UpdateBrushIndicator;
-
                 interpreter.OnOutputMessage += (msg) =>
                 {
                     OutputTextBox.Dispatcher.Invoke(() => OutputTextBox.AppendText(msg + Environment.NewLine));
                 };
-
+                interpreter.IsAnimationEnabled = _isAnimationEnabled;
+                interpreter.AnimationDelayMs = 10;
                 interpreter.Interpret(programNode);
             }
             catch (Exception ex)
@@ -517,6 +521,25 @@ EndLoop
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             this.Close();
+        }
+
+        private void AnimationToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            _isAnimationEnabled = !_isAnimationEnabled;
+            AnimationToggleButton.Content = _isAnimationEnabled ? "Animación: ON" : "Animación: OFF";
+        }
+
+        private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (CanvasScaleTransform != null && ZoomValueText != null && ZoomSlider != null)
+            {
+                int zoom = (int)ZoomSlider.Value;
+                CanvasScaleTransform.ScaleX = zoom;
+                CanvasScaleTransform.ScaleY = zoom;
+                ZoomValueText.Text = $"{zoom}x";
+                // Redibujar la cuadrícula para el nuevo zoom
+                DrawGrid();
+            }
         }
     }
 } 
