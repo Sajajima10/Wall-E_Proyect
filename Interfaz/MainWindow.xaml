@@ -22,6 +22,7 @@
             <Button x:Name="LoadButton" Content="Cargar" Margin="5,0"/>
             <Button x:Name="SaveButton" Content="Guardar" Margin="5,0"/>
             <Button x:Name="ExecuteButton" Content="Ejecutar" Margin="5,0"/>
+            <Button x:Name="ExamplesButton" Content="Ejemplos" Margin="5,0"/>
         </StackPanel>
 
         <!-- Línea de números -->

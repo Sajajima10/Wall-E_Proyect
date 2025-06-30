@@ -18,6 +18,114 @@ namespace Interfaz
         private int _canvasSize = 256;
         private const int MaxCanvasSize = 1024;
 
+        private readonly List<(string Titulo, string Codigo)> ejemplosPixelWallE = new()
+        {
+            ("Líneas Básicas", 
+@"Spawn(40,40)
+Color(""red"")
+DrawLine(1,0,20)
+Color(""green"")
+DrawLine(0,1,20)
+Color(""blue"")
+DrawLine(-1,0,20)
+Color(""black"")
+DrawLine(0,-1,20)
+"),
+            ("Círculos en Cuatro Direcciones", 
+@"Spawn(40,40)
+Color(""blue"")
+DrawCircle(1,0,10)
+DrawCircle(0,1,10)
+DrawCircle(-1,0,10)
+DrawCircle(0,-1,10)
+"),
+            ("Cambio de Color y Grosor", 
+@"Spawn(10,10)
+Color(""red"")
+Size(5)
+DrawLine(1,1,20)
+Color(""green"")
+Size(3)
+DrawLine(1,-1,20)
+Color(""blue"")
+Size(1)
+DrawLine(-1,1,20)
+"),
+            ("Relleno de Área", 
+@"Spawn(20,20)
+Color(""black"")
+DrawLine(1,0,20)
+DrawLine(0,1,20)
+DrawLine(-1,0,20)
+DrawLine(0,-1,20)
+Color(""yellow"")
+Fill()
+"),
+            ("Bucle Simple", 
+@"Spawn(5,75)
+Color(""purple"")
+Loop i = 0 To 10
+    DrawLine(1,-1,7)
+    DrawLine(1,1,7)
+EndLoop
+"),
+            ("Condicional IF", 
+@"Spawn(10,10)
+Set x = 1
+If x == 1
+    Color(""orange"")
+    DrawLine(1,1,30)
+EndIf
+"),
+            ("Funciones de Usuario", 
+@"Spawn(40,40)
+Func Cruz()
+    Color(""red"")
+    DrawLine(1,0,10)
+    DrawLine(-1,0,10)
+    Color(""blue"")
+    DrawLine(0,1,10)
+    DrawLine(0,-1,10)
+EndFunc
+Call(""Cruz"")
+"),
+            ("GoTo y Etiquetas", 
+@"Spawn(10,10)
+Set n = 0
+Loop i = 0 To 3
+    Color(""green"")
+    DrawLine(1,1,10)
+    n = n + 1
+    GoTo[REPETIR](n < 3)
+EndLoop
+REPETIR:
+Color(""red"")
+DrawLine(-1,1,10)
+"),
+            ("Funciones de Consulta", 
+@"Spawn(5,5)
+Color(""blue"")
+DrawLine(1,1,10)
+Print(GetActualX())
+Print(GetActualY())
+Print(GetCanvasSize())
+Print(IsBrushColor(""blue""))
+Print(IsBrushSize(1))
+"),
+            ("Forward, Backward y Turn", 
+@"Spawn(40,40)
+Color(""magenta"")
+Loop i = 0 To 4
+    Forward(20)
+    Turn(72)
+EndLoop
+Loop i = 0 To 4
+    Backward(20)
+    Turn(-72)
+EndLoop
+")
+        };
+
         public MainWindow()
         {
             InitializeComponent();
@@ -28,6 +136,7 @@ namespace Interfaz
             LoadButton.Click += LoadButton_Click;
             SaveButton.Click += SaveButton_Click;
             CodeEditor.TextChanged += CodeEditor_TextChanged;
+            ExamplesButton.Click += ExamplesButton_Click;
         }
 
         private void InitializeCanvas()
@@ -207,6 +316,26 @@ namespace Interfaz
                 Canvas.SetLeft(BrushIndicator, pos.X * scale - BrushIndicator.Width / 2);
                 Canvas.SetTop(BrushIndicator, pos.Y * scale - BrushIndicator.Height / 2);
             });
+        }
+
+        private void ExamplesButton_Click(object sender, RoutedEventArgs e)
+        {
+            var selector = new Window { Title = "Selecciona un ejemplo", Width = 400, Height = 500, WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = this };
+            var listBox = new ListBox { Margin = new Thickness(10) };
+            foreach (var ej in ejemplosPixelWallE)
+                listBox.Items.Add(ej.Titulo);
+            var btn = new Button { Content = "Cargar", Margin = new Thickness(10), IsDefault = true };
+            btn.Click += (s, ev) => selector.DialogResult = true;
+            var stack = new StackPanel();
+            stack.Children.Add(listBox);
+            stack.Children.Add(btn);
+            selector.Content = stack;
+            if (selector.ShowDialog() == true && listBox.SelectedIndex >= 0)
+            {
+                var codigo = ejemplosPixelWallE[listBox.SelectedIndex].Codigo;
+                CodeEditor.Document.Blocks.Clear();
+                CodeEditor.Document.Blocks.Add(new Paragraph(new Run(codigo)));
+            }
         }
     }
 } 

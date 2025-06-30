@@ -103,32 +103,23 @@ namespace Interfaz.Language
                     }
                 }
 
-                if (statement is GoToStatement gotoStmt)
+                try
                 {
-                    var cond = VisitExpression(gotoStmt.Condition);
-                    bool jump = false;
-                    if (cond is bool b)
-                        jump = b;
-                    else if (cond is int i)
-                        jump = i != 0;
-                    else
-                        throw new Exception($"La condición de GoTo debe ser booleana o entera (0/1).");
-
-                    if (jump)
+                    if (statement is LabelStatement)
                     {
-                        if (!labelMap.TryGetValue(gotoStmt.Label, out int target))
-                            throw new Exception($"Etiqueta '{gotoStmt.Label}' no encontrada.");
-                        pc = target;
-                        continue;
+                        // No hacer nada, solo es un marcador
+                    }
+                    else
+                    {
+                        VisitStatement(statement);
                     }
                 }
-                else if (statement is LabelStatement)
+                catch (GoToException ex)
                 {
-                    // No hacer nada, solo es un marcador
-                }
-                else
-                {
-                    VisitStatement(statement);
+                    if (!labelMap.TryGetValue(ex.Label, out int target))
+                        throw new Exception($"Etiqueta '{ex.Label}' no encontrada.");
+                    pc = target;
+                    continue;
                 }
 
                 pc++;
@@ -160,8 +151,20 @@ namespace Interfaz.Language
                     break;
                 case ReturnStatement retStmt:
                     throw new ReturnException(VisitExpression(retStmt.Value));
-                case DrawRectangleStatement drawRectStmt: // Added case for DrawRectangleStatement
+                case DrawRectangleStatement drawRectStmt:
                     VisitDrawRectangleStatement(drawRectStmt);
+                    break;
+                case GoToStatement gotoStmt:
+                    var cond = VisitExpression(gotoStmt.Condition);
+                    bool jump = false;
+                    if (cond is bool b)
+                        jump = b;
+                    else if (cond is int i)
+                        jump = i != 0;
+                    else
+                        throw new Exception($"La condición de GoTo debe ser booleana o entera (0/1).");
+                    if (jump)
+                        throw new GoToException(gotoStmt.Label);
                     break;
                 default:
                     throw new NotImplementedException($"La sentencia de tipo '{statement.GetType().Name}' aún no está implementada en el intérprete. Línea: {statement.Line}, Columna: {statement.Column}");
@@ -223,6 +226,19 @@ namespace Interfaz.Language
                     if (evaluatedArgs.Count != 0)
                         throw new Exception("'Fill' no recibe argumentos.");
                     FillArea();
+                    break;
+
+                case "Call":
+                    if (evaluatedArgs.Count < 1 || !(evaluatedArgs[0] is string funcName))
+                        throw new Exception("'Call' espera al menos el nombre de la función como string.");
+                    var callArgs = evaluatedArgs.Skip(1).ToList();
+                    CallUserFunction(funcName, callArgs);
+                    break;
+
+                case "Turn":
+                    if (evaluatedArgs.Count != 1 || !(evaluatedArgs[0] is int angle))
+                        throw new Exception("'Turn' espera un entero (grados).");
+                    _currentRotation = (_currentRotation + angle) % 360;
                     break;
 
                 default:
@@ -922,6 +938,10 @@ else if (funcCallExpr.FunctionName == "IsCanvasColor")
             }
         }
 
-
+        private class GoToException : Exception
+        {
+            public string Label { get; }
+            public GoToException(string label) { Label = label; }
+        }
     }
 }
