@@ -123,6 +123,148 @@ Loop i = 0 To 4
     Backward(20)
     Turn(-72)
 EndLoop
+"),
+            ("Espiral de Colores", 
+@"Spawn(25,25)
+Set(ang,0)
+Set(dist,1)
+Loop i = 0 To 18
+    If i % 3 == 0
+        Color(""red"")
+    EndIf
+    If i % 3 == 1
+        Color(""green"")
+    EndIf
+    If i % 3 == 2
+        Color(""blue"")
+    EndIf
+    Forward(dist)
+    Turn(20)
+    Set(dist,dist+1)
+EndLoop
+"),
+            ("Mandala Simple", 
+@"Spawn(25,25)
+Loop i = 0 To 7
+    Color(""purple"")
+    DrawLine(1,0,15)
+    Backward(15)
+    Turn(45)
+EndLoop
+Loop i = 0 To 3
+    Color(""cyan"")
+    DrawCircle(1,0,7)
+    Turn(90)
+EndLoop
+"),
+            ("Flor Pixelada", 
+@"Spawn(25,25)
+Loop i = 0 To 5
+    Color(""yellow"")
+    DrawLine(1,1,10)
+    Backward(10)
+    Turn(60)
+EndLoop
+Color(""green"")
+DrawLine(0,1,12)
+"),
+            ("Estrella de 8 Puntas", 
+@"Spawn(25,25)
+Loop i = 0 To 7
+    Color(""orange"")
+    DrawLine(1,0,15)
+    Backward(15)
+    Turn(45)
+EndLoop
+"),
+            ("Corazón Pixelado", 
+@"Spawn(25,15)
+Color(""red"")
+DrawLine(1,1,7)
+DrawLine(-1,1,7)
+DrawLine(1,0,5)
+DrawLine(-1,0,5)
+DrawLine(0,1,5)
+Color(""pink"")
+Fill()
+"),
+            ("Árbol Fractal", 
+@"Spawn(25,48)
+Func Rama(n)
+    If n == 0
+        Return(0)
+    EndIf
+    Color(""brown"")
+    Forward(n)
+    Turn(-30)
+    Call(""Rama"", n-4)
+    Turn(60)
+    Call(""Rama"", n-4)
+    Turn(-30)
+    Backward(n)
+EndFunc
+Call(""Rama"", 12)
+"),
+            ("Mariposa Simétrica", 
+@"Spawn(25,25)
+Loop i = 0 To 3
+    Color(""blue"")
+    DrawCircle(1,1,7)
+    Turn(90)
+EndLoop
+Color(""black"")
+DrawLine(0,1,10)
+DrawLine(0,-1,10)
+"),
+            ("Sol y Nubes", 
+@"Spawn(10,10)
+Color(""yellow"")
+DrawCircle(1,0,5)
+Color(""white"")
+Spawn(40,8)
+DrawCircle(1,0,4)
+Spawn(43,15)
+DrawCircle(1,0,3)
+Spawn(37,15)
+DrawCircle(1,0,3)
+"),
+            ("Mosaico de Colores", 
+@"Spawn(3,3)
+Loop i = 0 To 4
+    Loop j = 0 To 4
+        If (i+j)%3 == 0
+            Color(""red"")
+        EndIf
+        If (i+j)%3 == 1
+            Color(""green"")
+        EndIf
+        If (i+j)%3 == 2
+            Color(""blue"")
+        EndIf
+        DrawRectangle(0,0,6,6)
+        Spawn(3+j*10,3+i*10)
+    EndLoop
+EndLoop
+"),
+            ("Rueda de Colores", 
+@"Spawn(25,25)
+Loop i = 0 To 11
+    If i%4 == 0
+        Color(""red"")
+    EndIf
+    If i%4 == 1
+        Color(""green"")
+    EndIf
+    If i%4 == 2
+        Color(""blue"")
+    EndIf
+    If i%4 == 3
+        Color(""yellow"")
+    EndIf
+    DrawLine(1,0,15)
+    Backward(15)
+    Turn(30)
+EndLoop
 ")
         };
 
@@ -312,9 +454,42 @@ EndLoop
             Dispatcher.Invoke(() =>
             {
                 double scale = 8;
-                BrushIndicator.Visibility = Visibility.Visible;
-                Canvas.SetLeft(BrushIndicator, pos.X * scale - BrushIndicator.Width / 2);
-                Canvas.SetTop(BrushIndicator, pos.Y * scale - BrushIndicator.Height / 2);
+                BrushIndicator.Visibility = Visibility.Collapsed;
+                // Limpia cualquier cruz previa
+                var toRemove = new List<UIElement>();
+                foreach (var child in GridOverlay.Children)
+                {
+                    if (child is Line l && l.Tag as string == "BrushCross")
+                        toRemove.Add(l);
+                }
+                foreach (var el in toRemove)
+                    GridOverlay.Children.Remove(el);
+                // Dibuja la cruz azul del tamaño de un pixel
+                double cx = Math.Round(pos.X) * scale;
+                double cy = Math.Round(pos.Y) * scale;
+                double size = scale;
+                var hLine = new Line
+                {
+                    X1 = cx,
+                    Y1 = cy + size / 2,
+                    X2 = cx + size,
+                    Y2 = cy + size / 2,
+                    Stroke = Brushes.Blue,
+                    StrokeThickness = 2,
+                    Tag = "BrushCross"
+                };
+                var vLine = new Line
+                {
+                    X1 = cx + size / 2,
+                    Y1 = cy,
+                    X2 = cx + size / 2,
+                    Y2 = cy + size,
+                    Stroke = Brushes.Blue,
+                    StrokeThickness = 2,
+                    Tag = "BrushCross"
+                };
+                GridOverlay.Children.Add(hLine);
+                GridOverlay.Children.Add(vLine);
             });
         }
 

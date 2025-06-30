@@ -241,6 +241,13 @@ namespace Interfaz.Language
                     _currentRotation = (_currentRotation + angle) % 360;
                     break;
 
+                case "Move":
+                    if (evaluatedArgs.Count != 2 || !(evaluatedArgs[0] is int mx) || !(evaluatedArgs[1] is int my))
+                        throw new Exception("'Move' espera dos enteros (x, y).");
+                    _currentPosition = new Point(mx, my);
+                    OnBrushMoved?.Invoke(_currentPosition);
+                    break;
+
                 default:
                     throw new Exception($"Función '{funcCall.FunctionName}' no reconocida o no implementada.");
             }
