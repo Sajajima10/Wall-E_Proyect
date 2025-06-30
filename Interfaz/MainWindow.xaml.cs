@@ -279,6 +279,7 @@ EndLoop
             SaveButton.Click += SaveButton_Click;
             CodeEditor.TextChanged += CodeEditor_TextChanged;
             ExamplesButton.Click += ExamplesButton_Click;
+            CloseButton.Click += CloseButton_Click;
         }
 
         private void InitializeCanvas()
@@ -511,6 +512,11 @@ EndLoop
                 CodeEditor.Document.Blocks.Clear();
                 CodeEditor.Document.Blocks.Add(new Paragraph(new Run(codigo)));
             }
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
         }
     }
 } 
