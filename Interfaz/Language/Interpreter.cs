@@ -574,7 +574,34 @@ else if (funcCallExpr.FunctionName == "IsCanvasColor")
 
         private Color ParseColor(string colorName, int line, int column)
         {
-            switch (colorName.ToLower())
+            // Permitir sintaxis: "rgb(255,0,0)", "255,0,0" o nombres
+            string lower = colorName.ToLower().Trim();
+            if (lower.StartsWith("rgb(") && lower.EndsWith(")"))
+            {
+                string inner = lower.Substring(4, lower.Length - 5);
+                var parts = inner.Split(',');
+                if (parts.Length == 3 &&
+                    byte.TryParse(parts[0].Trim(), out byte r) &&
+                    byte.TryParse(parts[1].Trim(), out byte g) &&
+                    byte.TryParse(parts[2].Trim(), out byte b))
+                {
+                    return Color.FromRgb(r, g, b);
+                }
+                throw new Exception($"Color RGB inválido: '{colorName}' en Línea: {line}, Columna: {column}.");
+            }
+            else if (lower.Contains(","))
+            {
+                var parts = lower.Split(',');
+                if (parts.Length == 3 &&
+                    byte.TryParse(parts[0].Trim(), out byte r) &&
+                    byte.TryParse(parts[1].Trim(), out byte g) &&
+                    byte.TryParse(parts[2].Trim(), out byte b))
+                {
+                    return Color.FromRgb(r, g, b);
+                }
+                throw new Exception($"Color RGB inválido: '{colorName}' en Línea: {line}, Columna: {column}.");
+            }
+            switch (lower)
             {
                 case "red": return Colors.Red;
                 case "green": return Colors.Green;

@@ -454,11 +454,45 @@ EndLoop
             LineNumbersTextBlock.Text = sb.ToString();
         }
         
+        private void PixelCanvas_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            // Obtener la posición del mouse relativa al Grid contenedor
+            var pos = e.GetPosition(PixelCanvas);
+            double scale = ((ScaleTransform)PixelCanvas.LayoutTransform).ScaleX;
+            // Buscar el ScrollViewer ancestro
+            var scrollViewer = FindParent<ScrollViewer>(PixelCanvas);
+            double offsetX = 0, offsetY = 0;
+            if (scrollViewer != null)
+            {
+                offsetX = scrollViewer.HorizontalOffset;
+                offsetY = scrollViewer.VerticalOffset;
+            }
+            // Restar el padding del Border (8)
+            double padding = 8;
+            double xReal = (pos.X + offsetX - padding) / scale;
+            double yReal = (pos.Y + offsetY - padding) / scale;
+            int x = (int)Math.Floor(xReal);
+            int y = (int)Math.Floor(yReal);
+            if (x >= 0 && x < _canvasSize && y >= 0 && y < _canvasSize)
+            {
+                MessageBox.Show($"Coordenadas: ({x}, {y})", "Pixel seleccionado", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        // Método auxiliar para buscar el ScrollViewer padre
+        private T FindParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            DependencyObject parent = VisualTreeHelper.GetParent(child);
+            while (parent != null && !(parent is T))
+                parent = VisualTreeHelper.GetParent(parent);
+            return parent as T;
+        }
+
         private void UpdateBrushIndicator(Point pos)
         {
             Dispatcher.Invoke(() =>
             {
-                double scale = 8;
+                double scale = ((ScaleTransform)PixelCanvas.LayoutTransform).ScaleX;
                 BrushIndicator.Visibility = Visibility.Collapsed;
                 // Limpia cualquier cruz previa
                 var toRemove = new List<UIElement>();
@@ -469,7 +503,7 @@ EndLoop
                 }
                 foreach (var el in toRemove)
                     GridOverlay.Children.Remove(el);
-                // Dibuja la cruz azul del tamaño de un pixel
+                // Dibuja la cruz azul del tamaño de un pixel (adaptada al zoom)
                 double cx = Math.Round(pos.X) * scale;
                 double cy = Math.Round(pos.Y) * scale;
                 double size = scale;
@@ -480,7 +514,7 @@ EndLoop
                     X2 = cx + size,
                     Y2 = cy + size / 2,
                     Stroke = Brushes.Blue,
-                    StrokeThickness = 2,
+                    StrokeThickness = Math.Max(2, scale / 4),
                     Tag = "BrushCross"
                 };
                 var vLine = new Line
@@ -490,7 +524,7 @@ EndLoop
                     X2 = cx + size / 2,
                     Y2 = cy + size,
                     Stroke = Brushes.Blue,
-                    StrokeThickness = 2,
+                    StrokeThickness = Math.Max(2, scale / 4),
                     Tag = "BrushCross"
                 };
                 GridOverlay.Children.Add(hLine);

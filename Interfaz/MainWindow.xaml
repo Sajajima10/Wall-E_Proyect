@@ -122,7 +122,8 @@
                                HorizontalAlignment="Left"
                                VerticalAlignment="Top"
                                Stretch="None"
-                               RenderOptions.BitmapScalingMode="NearestNeighbor">
+                               RenderOptions.BitmapScalingMode="NearestNeighbor"
+                               MouseLeftButtonDown="PixelCanvas_MouseLeftButtonDown">
                             <Image.LayoutTransform>
                                 <ScaleTransform x:Name="CanvasScaleTransform" ScaleX="8" ScaleY="8"/>
                             </Image.LayoutTransform>
